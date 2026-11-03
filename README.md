@@ -16,7 +16,7 @@ Paint sand with the mouse or a finger. Add `?debug=1` for FPS and per-step timin
 `npm test` runs every Vitest file. Each layer has its own command:
 
 - `npm run typecheck` — app project and the DOM-free simulation project
-- `npm run test:unit` — channel swap and the fixed timestep
+- `npm run test:unit` — channel swap, the fixed timestep, pointer mapping, and brush strokes
 - `npm run test:scenario` — sand scenarios written as text pictures (`.` empty, other symbols from the material registry)
 - `npm run test:invariants` — conservation, bounds, determinism, and a random-grid fuzz
 - `npm run test:golden` — seeded scenes, 600 steps, checked against `tests/golden/replays.json`
