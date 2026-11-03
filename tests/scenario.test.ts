@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Simulation } from '../src/core/sim';
+import { Simulation } from '../src/core/sim';
 import { FIRE } from '../src/materials/fire';
 import { PLANT } from '../src/materials/plant';
 import { SAND } from '../src/materials/sand';
@@ -335,6 +335,31 @@ describe('reactions', () => {
     const lowestSmoke = lowest(sim, SMOKE);
     const highestWater = highest(sim, WATER);
     expect(lowestSmoke).toBeLessThan(highestWater);
+  });
+
+  it('spreads fire only to a direct neighbour in one step', () => {
+    // The row is on the top edge, so the flame cannot rise off it. A fresh simulation's
+    // first step scans right to left; one idle step flips the next scan left to right.
+    const row = `f${'p'.repeat(24)}`;
+    // Seed 25 ignites the plant beside the flame. A left-to-right scan would otherwise
+    // keep lighting the next plant in the same step.
+    for (const advance of [false, true]) {
+      const sim = new Simulation(25);
+      if (advance) sim.step(1);
+      for (let x = 0; x < row.length; x++) sim.setCell(x, 0, row[x] === 'f' ? FIRE : PLANT);
+      sim.step(1);
+      const { type, width, height } = sim.world;
+      let fires = 0;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (type[y * width + x] !== FIRE) continue;
+          fires += 1;
+          const beside = Math.abs(x) + Math.abs(y) <= 1;
+          expect(beside, `advance ${advance}: fire at (${x}, ${y})`).toBe(true);
+        }
+      }
+      expect(fires, `advance ${advance}`).toBe(2);
+    }
   });
 
   it('lets fire and smoke burn out', () => {

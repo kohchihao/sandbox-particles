@@ -115,12 +115,9 @@ function expectConserved(before: Record<string, number>, after: Record<string, n
 function assertKnownMaterials(world: World): void {
   const known = new Set<number>([EMPTY, ...materials.map((material) => material.id)]);
   const { type } = world;
-  let knownCells = 0;
   for (let i = 0; i < type.length; i++) {
     if (!known.has(type[i]!)) throw new Error(`unknown material id ${type[i]} at cell ${i}`);
-    knownCells += 1;
   }
-  expect(knownCells).toBe(type.length);
 }
 
 function wallCoordinates(world: World): string[] {

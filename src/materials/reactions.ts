@@ -92,7 +92,7 @@ function chanceOf(p: number): number {
 }
 
 /** Reactions, then lifetime. Inert ids never get here, so they do not touch the RNG. */
-export function afterMove(world: World, index: number, rng: Rng): void {
+export function afterMove(world: World, index: number, rng: Rng, frame: number): void {
   const id = world.type[index]!;
   const width = world.width;
   const x = index % width;
@@ -107,15 +107,15 @@ export function afterMove(world: World, index: number, rng: Rng): void {
       const other = world.type[ni]!;
       const outcome = row[other];
       if (outcome && (outcome.chance === 0 || rng.nextU32() < outcome.chance)) {
-        if (outcome.aBecomes !== id) writeCell(world, index, outcome.aBecomes, x, y);
-        if (outcome.bBecomes !== other) writeCell(world, ni, outcome.bBecomes, nx, ny);
+        if (outcome.aBecomes !== id) writeCell(world, index, outcome.aBecomes, x, y, frame);
+        if (outcome.bBecomes !== other) writeCell(world, ni, outcome.bBecomes, nx, ny, frame);
       }
     }
   }
-  tickLife(world, index, x, y);
+  tickLife(world, index, x, y, frame);
 }
 
-function tickLife(world: World, index: number, x: number, y: number): void {
+function tickLife(world: World, index: number, x: number, y: number, frame: number): void {
   const id = world.type[index]!;
   if (lifeSpan[id] === 0) return;
   const left = world.life[index]! - 1;
@@ -123,14 +123,17 @@ function tickLife(world: World, index: number, x: number, y: number): void {
     world.life[index] = left;
     return;
   }
-  writeCell(world, index, decayTo[id]!, x, y);
+  writeCell(world, index, decayTo[id]!, x, y, frame);
 }
 
-function writeCell(world: World, index: number, id: number, x: number, y: number): void {
+function writeCell(world: World, index: number, id: number, x: number, y: number, frame: number): void {
   world.type[index] = id;
   world.life[index] = lifeSpan[id] ?? 0;
   world.temp[index] = 0;
   world.vx[index] = 0;
   world.vy[index] = 0;
   world.shade[index] = id === EMPTY ? 0 : shadeFor(x, y);
+  // A cell born from a reaction has already had its turn. Leaving the clock clear lets
+  // the scan run the new fire or plant again in this same step, chaining along the sweep.
+  world.clock[index] = frame;
 }

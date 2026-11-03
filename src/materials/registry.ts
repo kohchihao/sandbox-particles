@@ -70,5 +70,5 @@ export function updateMaterial(world: World, x: number, y: number, rng: Rng, fra
     rng,
     frame,
   );
-  if (cellAftermath[id] !== 0) afterMove(world, landed, rng);
+  if (cellAftermath[id] !== 0) afterMove(world, landed, rng, frame);
 }
