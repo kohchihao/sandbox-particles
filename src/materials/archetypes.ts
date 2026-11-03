@@ -24,7 +24,11 @@ export function installDensities(
   }
 }
 
-/** Where the cell updated by the latest `stepArchetype` call ended up. */
+/**
+ * Where the cell updated by the latest `stepArchetype` call ended up.
+ * Every path writes this. A powder or liquid with a reaction or a lifetime
+ * would otherwise read whatever static or gas cell settled last.
+ */
 let settledAt = 0;
 
 export function cellSettledAt(): number {
@@ -42,6 +46,7 @@ export function stepArchetype(
   rng: Rng,
   frame: number,
 ): void {
+  settledAt = from;
   switch (archetype) {
     case 'powder':
       movePowder(world, x, y, from, density, rng, frame);
@@ -65,6 +70,7 @@ function tryMove(world: World, x: number, y: number, from: number, density: numb
   if (densityById[world.type[to]!]! >= density) return false;
   world.swap(from, to);
   world.clock[to] = frame;
+  settledAt = to;
   return true;
 }
 
@@ -162,18 +168,21 @@ function flowSideways(
     if (id !== EMPTY) {
       world.swap(from, to);
       world.clock[to] = frame;
+      settledAt = to;
       return true;
     }
     landing = to;
     if (belowY < world.height && densityById[world.type[world.index(nx, belowY)]!]! < density) {
       world.swap(from, to);
       world.clock[to] = frame;
+      settledAt = to;
       return true;
     }
   }
   if (landing < 0) return false;
   world.swap(from, landing);
   world.clock[landing] = frame;
+  settledAt = landing;
   return true;
 }
 

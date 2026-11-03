@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { Simulation } from '../src/core/sim';
 import { FIRE } from '../src/materials/fire';
 import { PLANT } from '../src/materials/plant';
-import { SAND } from '../src/materials/sand';
+import { installReactions, reactions } from '../src/materials/reactions';
+import { EMPTY, SAND } from '../src/materials/sand';
 import { SMOKE } from '../src/materials/smoke';
 import { WATER } from '../src/materials/water';
 import { WALL } from '../src/materials/wall';
@@ -296,7 +297,36 @@ const chimney = `
 ###
 `;
 
+const liquidLands = `
+.w.
+s.#
+`;
+
 describe('reactions', () => {
+  it('reacts a liquid at the cell it moved into', () => {
+    // The wall is static, so it records a landing index before the water falls.
+    // The water then drops onto the floor beside the sand. The reaction has to
+    // clear that landing cell, not the wall the previous material settled on.
+    installReactions([
+      ...reactions,
+      { a: WATER, b: SAND, aBecomes: EMPTY, bBecomes: SAND, p: 1 },
+    ]);
+    try {
+      const { sim, region } = loadPicture(liquidLands, { seed: 1, x: 8, onFloor: true });
+      sim.step(1);
+      expectPicture(
+        sim,
+        `
+        ...
+        s.#
+        `,
+        region,
+      );
+    } finally {
+      installReactions(reactions);
+    }
+  });
+
   it('grows plant into neighbouring water over 1000 steps', () => {
     const { sim } = loadPicture(pond, { seed: 3, x: 12, y: 12 });
     const plantBefore = countId(sim, PLANT);
