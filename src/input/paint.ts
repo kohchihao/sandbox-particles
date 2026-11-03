@@ -21,9 +21,7 @@ export const DEFAULT_BRUSH_RADIUS = Math.SQRT2;
  * Map a pointer position to a grid cell.
  *
  * `box` is the canvas border box, so a letterboxed stage misses outside it.
- * Client coordinates and that box are both CSS pixels. Multiplying through by
- * `devicePixelRatio` keeps the cell stable when the backing store is sized in
- * device pixels (`css * dpr`) or one pixel per cell — the ratio cancels.
+ * Client coordinates and that box are both CSS pixels.
  */
 export function clientToCell(
   clientX: number,
@@ -31,15 +29,10 @@ export function clientToCell(
   box: ClientBox,
   gridWidth: number,
   gridHeight: number,
-  devicePixelRatio = 1,
 ): Cell | null {
   if (!(box.width > 0) || !(box.height > 0) || !(gridWidth > 0) || !(gridHeight > 0)) return null;
-  const dpr = devicePixelRatio > 0 && Number.isFinite(devicePixelRatio) ? devicePixelRatio : 1;
-  const deviceWidth = box.width * dpr;
-  const deviceHeight = box.height * dpr;
-  if (!(deviceWidth > 0) || !(deviceHeight > 0)) return null;
-  const x = Math.floor(((clientX - box.left) * dpr * gridWidth) / deviceWidth);
-  const y = Math.floor(((clientY - box.top) * dpr * gridHeight) / deviceHeight);
+  const x = Math.floor(((clientX - box.left) * gridWidth) / box.width);
+  const y = Math.floor(((clientY - box.top) * gridHeight) / box.height);
   if (x < 0 || y < 0 || x >= gridWidth || y >= gridHeight) return null;
   return { x, y };
 }

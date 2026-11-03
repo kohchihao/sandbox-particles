@@ -13,21 +13,19 @@ describe('clientToCell', () => {
   const gridWidth = 200;
   const gridHeight = 150;
 
-  it('maps CSS pixels through letterboxing and devicePixelRatio', () => {
-    for (const dpr of [1, 2, 3]) {
-      expect(clientToCell(64 + 41, 48 + 102, box, gridWidth, gridHeight, dpr)).toEqual({ x: 10, y: 25 });
-    }
+  it('maps CSS pixels through a letterboxed canvas', () => {
+    expect(clientToCell(64 + 41, 48 + 102, box, gridWidth, gridHeight)).toEqual({ x: 10, y: 25 });
   });
 
   it('misses the letterbox outside the canvas', () => {
-    expect(clientToCell(10, 80, box, gridWidth, gridHeight, 2)).toBeNull();
-    expect(clientToCell(100, 10, box, gridWidth, gridHeight, 2)).toBeNull();
-    expect(clientToCell(64 + 800, 48 + 10, box, gridWidth, gridHeight, 1)).toBeNull();
-    expect(clientToCell(64 + 10, 48 + 600, box, gridWidth, gridHeight, 3)).toBeNull();
+    expect(clientToCell(10, 80, box, gridWidth, gridHeight)).toBeNull();
+    expect(clientToCell(100, 10, box, gridWidth, gridHeight)).toBeNull();
+    expect(clientToCell(64 + 800, 48 + 10, box, gridWidth, gridHeight)).toBeNull();
+    expect(clientToCell(64 + 10, 48 + 600, box, gridWidth, gridHeight)).toBeNull();
   });
 
   it('includes the last cell and rejects a zero-sized box', () => {
-    expect(clientToCell(64 + 799.9, 48 + 599.9, box, gridWidth, gridHeight, 3)).toEqual({
+    expect(clientToCell(64 + 799.9, 48 + 599.9, box, gridWidth, gridHeight)).toEqual({
       x: 199,
       y: 149,
     });
@@ -35,7 +33,7 @@ describe('clientToCell', () => {
   });
 
   it('uses each axis when the canvas CSS box is stretched', () => {
-    expect(clientToCell(5.2, 7, { left: 0, top: 0, width: 200, height: 300 }, 200, 150, 2)).toEqual({
+    expect(clientToCell(5.2, 7, { left: 0, top: 0, width: 200, height: 300 }, 200, 150)).toEqual({
       x: 5,
       y: 3,
     });

@@ -27,7 +27,7 @@ export function attachPointer(
 
   const toCell = (event: PointerEvent) => {
     const rect = canvas.getBoundingClientRect();
-    return clientToCell(event.clientX, event.clientY, rect, gridWidth, gridHeight, window.devicePixelRatio || 1);
+    return clientToCell(event.clientX, event.clientY, rect, gridWidth, gridHeight);
   };
 
   const paintEvent = (event: PointerEvent) => {
