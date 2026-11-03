@@ -5,6 +5,8 @@ import { EMPTY, SAND, SAND_COLOR, updateSand } from './sand';
 export interface MaterialDef {
   id: number;
   name: string;
+  /** One character used by scenario pictures. `.` is reserved for empty. */
+  symbol: string;
   color: readonly [number, number, number];
   update(world: World, x: number, y: number, rng: Rng, frame: number): void;
 }
@@ -14,6 +16,7 @@ export const materials: readonly MaterialDef[] = [
   {
     id: SAND,
     name: 'sand',
+    symbol: 's',
     color: SAND_COLOR,
     update: updateSand,
   },

@@ -23,7 +23,8 @@ export interface SandHook {
   step(n: number): void;
 }
 
-const exposeHook = import.meta.env.DEV || import.meta.env.MODE === 'test';
+const exposeHook =
+  import.meta.env.DEV || import.meta.env.MODE === 'test' || import.meta.env.MODE === 'e2e';
 
 export interface Engine {
   stop(): void;

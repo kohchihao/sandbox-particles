@@ -1,58 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FixedStep, MAX_CATCHUP_STEPS, STEP_MS } from '../src/core/loop';
-import { Simulation } from '../src/core/sim';
 import { World } from '../src/core/world';
-import { EMPTY, SAND } from '../src/materials/sand';
-
-function hashGrid(world: World): number {
-  let hash = 2166136261;
-  const mix = (value: number) => {
-    hash ^= value & 255;
-    hash = Math.imul(hash, 16777619);
-  };
-  for (let i = 0; i < world.type.length; i++) {
-    mix(world.type[i]!);
-    mix(world.life[i]!);
-    mix(world.temp[i]!);
-    mix(world.temp[i]! >> 8);
-    mix(world.vx[i]!);
-    mix(world.vy[i]!);
-    mix(world.shade[i]!);
-    mix(world.clock[i]!);
-  }
-  return hash >>> 0;
-}
-
-function pile(seed: number): number {
-  const sim = new Simulation(seed);
-  const floor = sim.world.height - 1;
-  for (let x = 90; x <= 110; x++) sim.setCell(x, floor, SAND);
-  for (let y = floor - 36; y < floor; y++) sim.setCell(100, y, SAND);
-  sim.step(50);
-  return hashGrid(sim.world);
-}
-
-describe('sand', () => {
-  it('rests on the floor after 10 steps', () => {
-    const sim = new Simulation(1);
-    const x = 20;
-    const floor = sim.world.height - 1;
-    sim.setCell(x, floor - 10, SAND);
-    sim.step(10);
-
-    expect(sim.world.type[sim.world.index(x, floor)]).toBe(SAND);
-    for (let y = 0; y < floor; y++) {
-      expect(sim.world.type[sim.world.index(x, y)]).toBe(EMPTY);
-    }
-  });
-
-  it('gives the same grid hash for the same seed twice', () => {
-    const first = pile(42);
-    const second = pile(42);
-    expect(first).toBe(second);
-    expect(pile(42)).not.toBe(pile(7));
-  });
-});
 
 describe('world', () => {
   it('swaps every channel together', () => {

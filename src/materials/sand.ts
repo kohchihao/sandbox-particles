@@ -1,4 +1,3 @@
-import { cellIndex, isInBounds } from '../core/neighbours';
 import type { Rng } from '../core/rng';
 import type { World } from '../core/world';
 
@@ -8,15 +7,14 @@ export const SAND = 1;
 export const SAND_COLOR = [212, 176, 72] as const;
 
 export function updateSand(world: World, x: number, y: number, rng: Rng, frame: number): void {
-  const width = world.width;
-  const i = cellIndex(x, y, width);
+  const i = world.index(x, y, 'read');
   const belowY = y + 1;
 
   if (belowY < world.height) {
-    const below = i + width;
+    const below = world.index(x, belowY, 'read');
     if (world.type[below] === EMPTY) {
       world.swap(i, below);
-      world.clock[below] = frame;
+      world.clock[world.index(x, belowY, 'write')] = frame;
       return;
     }
 
@@ -25,15 +23,15 @@ export function updateSand(world: World, x: number, y: number, rng: Rng, frame: 
     if (slide(world, x, belowY, i, -first, frame)) return;
   }
 
-  world.clock[i] = frame;
+  world.clock[world.index(x, y, 'write')] = frame;
 }
 
 function slide(world: World, x: number, y: number, from: number, dx: number, frame: number): boolean {
   const nx = x + dx;
-  if (!isInBounds(nx, y, world.width, world.height)) return false;
-  const ni = cellIndex(nx, y, world.width);
+  if (!world.inBounds(nx, y)) return false;
+  const ni = world.index(nx, y, 'read');
   if (world.type[ni] !== EMPTY) return false;
   world.swap(from, ni);
-  world.clock[ni] = frame;
+  world.clock[world.index(nx, y, 'write')] = frame;
   return true;
 }

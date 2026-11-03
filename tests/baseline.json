@@ -1,0 +1,6 @@
+{
+  "width": 200,
+  "height": 150,
+  "stepsPerSecond": 557,
+  "note": "Median of 5 trials on the full 200x150 grid with half the cells sand (seed 1). Fails when more than 20% slower. Update with npm run bench:accept on the machine you want as the reference."
+}

@@ -1,0 +1,17 @@
+{
+  "steps": 600,
+  "scenes": {
+    "drip": {
+      "seed": 1,
+      "hash": "36f185c5"
+    },
+    "mound": {
+      "seed": 42,
+      "hash": "0208aaea"
+    },
+    "scatter": {
+      "seed": 3,
+      "hash": "096c824b"
+    }
+  }
+}

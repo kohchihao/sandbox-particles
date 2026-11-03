@@ -53,7 +53,8 @@ export function attachPointer(
   const onDown = (event: PointerEvent) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
     event.preventDefault();
-    canvas.setPointerCapture(event.pointerId);
+    // Synthetic pointer events used in tests have no active pointer id to capture.
+    if (event.isTrusted) canvas.setPointerCapture(event.pointerId);
     drawing = true;
     const cell = toCell(event);
     if (!cell) return;
