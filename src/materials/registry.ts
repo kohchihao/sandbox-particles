@@ -1,6 +1,6 @@
 import type { Rng } from '../core/rng';
 import type { World } from '../core/world';
-import { installDensities, stepArchetype, type Archetype } from './archetypes';
+import { cellSettledAt, installDensities, stepArchetype, type Archetype } from './archetypes';
 import { fire } from './fire';
 import { plant } from './plant';
 import { afterMove, cellAftermath, installLifetimes, installReactions, reactions } from './reactions';
@@ -59,7 +59,7 @@ export function updateMaterial(world: World, x: number, y: number, rng: Rng, fra
     material.update(world, x, y, rng, frame);
     return;
   }
-  const landed = stepArchetype(
+  stepArchetype(
     material.archetype,
     world,
     x,
@@ -70,5 +70,5 @@ export function updateMaterial(world: World, x: number, y: number, rng: Rng, fra
     rng,
     frame,
   );
-  if (cellAftermath[id] !== 0) afterMove(world, landed, rng, frame);
+  if (cellAftermath[id] !== 0) afterMove(world, cellSettledAt(), rng, frame);
 }

@@ -24,6 +24,13 @@ export function installDensities(
   }
 }
 
+/** Where the cell updated by the latest `stepArchetype` call ended up. */
+let settledAt = 0;
+
+export function cellSettledAt(): number {
+  return settledAt;
+}
+
 export function stepArchetype(
   archetype: Archetype,
   world: World,
@@ -34,65 +41,75 @@ export function stepArchetype(
   flow: number,
   rng: Rng,
   frame: number,
-): number {
+): void {
   switch (archetype) {
     case 'powder':
-      return movePowder(world, x, y, from, density, rng, frame);
+      movePowder(world, x, y, from, density, rng, frame);
+      return;
     case 'liquid':
-      return moveLiquid(world, x, y, from, density, flow, rng, frame);
+      moveLiquid(world, x, y, from, density, flow, rng, frame);
+      return;
     case 'gas':
-      return moveGas(world, x, y, from, density, rng, frame);
+      moveGas(world, x, y, from, density, rng, frame);
+      return;
     case 'static':
       world.clock[from] = frame;
-      return from;
+      settledAt = from;
+      return;
   }
 }
 
-/** Index the cell moved to, or -1 when it stayed put. Index 0 is a real cell, so callers must not test truthiness. */
-function tryMove(world: World, x: number, y: number, from: number, density: number, frame: number): number {
-  if (!world.inBounds(x, y)) return -1;
+function tryMove(world: World, x: number, y: number, from: number, density: number, frame: number): boolean {
+  if (!world.inBounds(x, y)) return false;
   const to = world.index(x, y);
-  if (densityById[world.type[to]!]! >= density) return -1;
+  if (densityById[world.type[to]!]! >= density) return false;
   world.swap(from, to);
   world.clock[to] = frame;
-  return to;
+  return true;
+}
+
+/** Same swap as `tryMove`, and records where the gas landed for a following reaction. */
+function tryDrift(world: World, x: number, y: number, from: number, density: number, frame: number): boolean {
+  if (!world.inBounds(x, y)) return false;
+  const to = world.index(x, y);
+  if (densityById[world.type[to]!]! >= density) return false;
+  world.swap(from, to);
+  world.clock[to] = frame;
+  settledAt = to;
+  return true;
 }
 
 /**
- * Straight up. Same as `tryMove` into a lighter cell, and also a swap into a heavier
+ * Straight up. Same as `tryDrift` into a lighter cell, and also a swap into a heavier
  * liquid or gas so smoke can rise through water. Powders and static cells still block.
  */
-function tryRise(world: World, x: number, y: number, from: number, density: number, frame: number): number {
-  const landed = tryMove(world, x, y, from, density, frame);
-  if (landed >= 0) return landed;
-  if (!world.inBounds(x, y)) return -1;
+function tryRise(world: World, x: number, y: number, from: number, density: number, frame: number): boolean {
+  if (tryDrift(world, x, y, from, density, frame)) return true;
+  if (!world.inBounds(x, y)) return false;
   const to = world.index(x, y);
   const dest = world.type[to]!;
   if (densityById[dest]! > density && fluidById[dest] === 1) {
     world.swap(from, to);
     world.clock[to] = frame;
-    return to;
+    settledAt = to;
+    return true;
   }
-  return -1;
+  return false;
 }
 
 /**
  * Down, then a random diagonal. Straight down does not draw a random number, matching
  * the old sand update so seeded sand-only replays stay on the same stream.
  */
-function movePowder(world: World, x: number, y: number, from: number, density: number, rng: Rng, frame: number): number {
+function movePowder(world: World, x: number, y: number, from: number, density: number, rng: Rng, frame: number): void {
   const belowY = y + 1;
   if (belowY < world.height) {
-    const down = tryMove(world, x, belowY, from, density, frame);
-    if (down >= 0) return down;
+    if (tryMove(world, x, belowY, from, density, frame)) return;
     const dir = (rng.nextU32() & 1) === 0 ? -1 : 1;
-    const first = tryMove(world, x + dir, belowY, from, density, frame);
-    if (first >= 0) return first;
-    const second = tryMove(world, x - dir, belowY, from, density, frame);
-    if (second >= 0) return second;
+    if (tryMove(world, x + dir, belowY, from, density, frame)) return;
+    if (tryMove(world, x - dir, belowY, from, density, frame)) return;
   }
   world.clock[from] = frame;
-  return from;
 }
 
 /** Down, diagonal down, then sideways by up to `flow` cells. */
@@ -105,26 +122,18 @@ function moveLiquid(
   flow: number,
   rng: Rng,
   frame: number,
-): number {
+): void {
   const belowY = y + 1;
-  if (belowY < world.height) {
-    const down = tryMove(world, x, belowY, from, density, frame);
-    if (down >= 0) return down;
-  }
+  if (belowY < world.height && tryMove(world, x, belowY, from, density, frame)) return;
 
   const dir = (rng.nextU32() & 1) === 0 ? -1 : 1;
   if (belowY < world.height) {
-    const first = tryMove(world, x + dir, belowY, from, density, frame);
-    if (first >= 0) return first;
-    const second = tryMove(world, x - dir, belowY, from, density, frame);
-    if (second >= 0) return second;
+    if (tryMove(world, x + dir, belowY, from, density, frame)) return;
+    if (tryMove(world, x - dir, belowY, from, density, frame)) return;
   }
-  const side = flowSideways(world, x, y, from, dir, density, flow, frame);
-  if (side >= 0) return side;
-  const other = flowSideways(world, x, y, from, -dir, density, flow, frame);
-  if (other >= 0) return other;
+  if (flowSideways(world, x, y, from, dir, density, flow, frame)) return;
+  if (flowSideways(world, x, y, from, -dir, density, flow, frame)) return;
   world.clock[from] = frame;
-  return from;
 }
 
 /**
@@ -141,7 +150,7 @@ function flowSideways(
   density: number,
   flow: number,
   frame: number,
-): number {
+): boolean {
   let landing = -1;
   const belowY = y + 1;
   for (let step = 1; step <= flow; step++) {
@@ -153,19 +162,19 @@ function flowSideways(
     if (id !== EMPTY) {
       world.swap(from, to);
       world.clock[to] = frame;
-      return to;
+      return true;
     }
     landing = to;
     if (belowY < world.height && densityById[world.type[world.index(nx, belowY)]!]! < density) {
       world.swap(from, to);
       world.clock[to] = frame;
-      return to;
+      return true;
     }
   }
-  if (landing < 0) return -1;
+  if (landing < 0) return false;
   world.swap(from, landing);
   world.clock[landing] = frame;
-  return landing;
+  return true;
 }
 
 /**
@@ -173,23 +182,15 @@ function flowSideways(
  * so a rising column does not stay perfectly straight. Only the straight-up step
  * may pass through a heavier fluid.
  */
-function moveGas(world: World, x: number, y: number, from: number, density: number, rng: Rng, frame: number): number {
+function moveGas(world: World, x: number, y: number, from: number, density: number, rng: Rng, frame: number): void {
   const dir = (rng.nextU32() & 1) === 0 ? -1 : 1;
   const drift = (rng.nextU32() & 3) === 0;
-  if (drift) {
-    const drifted = tryMove(world, x + dir, y, from, density, frame);
-    if (drifted >= 0) return drifted;
-  }
-  const up = tryRise(world, x, y - 1, from, density, frame);
-  if (up >= 0) return up;
-  const upFirst = tryMove(world, x + dir, y - 1, from, density, frame);
-  if (upFirst >= 0) return upFirst;
-  const upSecond = tryMove(world, x - dir, y - 1, from, density, frame);
-  if (upSecond >= 0) return upSecond;
-  const side = tryMove(world, x + dir, y, from, density, frame);
-  if (side >= 0) return side;
-  const other = tryMove(world, x - dir, y, from, density, frame);
-  if (other >= 0) return other;
+  if (drift && tryDrift(world, x + dir, y, from, density, frame)) return;
+  if (tryRise(world, x, y - 1, from, density, frame)) return;
+  if (tryDrift(world, x + dir, y - 1, from, density, frame)) return;
+  if (tryDrift(world, x - dir, y - 1, from, density, frame)) return;
+  if (tryDrift(world, x + dir, y, from, density, frame)) return;
+  if (tryDrift(world, x - dir, y, from, density, frame)) return;
   world.clock[from] = frame;
-  return from;
+  settledAt = from;
 }
