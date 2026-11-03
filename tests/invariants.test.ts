@@ -4,6 +4,7 @@ import { Simulation } from '../src/core/sim';
 import { World } from '../src/core/world';
 import { materialById, materials } from '../src/materials/registry';
 import { EMPTY } from '../src/materials/sand';
+import { WALL } from '../src/materials/wall';
 import { hashGrid } from './hashGrid';
 
 function materialCounts(world: World): Record<string, number> {
@@ -37,7 +38,9 @@ describe('invariants', () => {
   it('conserves per-material counts over 1000 seeded steps', () => {
     const sim = sprinkle(12345, 2);
     const before = materialCounts(sim.world);
-    expect(before.sand).toBeGreaterThan(0);
+    for (const material of materials) {
+      expect(before[material.name], material.name).toBeGreaterThan(0);
+    }
     sim.step(1000);
     expect(materialCounts(sim.world)).toEqual(before);
   });
@@ -65,15 +68,34 @@ describe('invariants', () => {
 
   it('survives 500 steps of a random grid without unknown ids', () => {
     const sim = sprinkle(7, 2);
+    const before = materialCounts(sim.world);
+    for (const material of materials) {
+      expect(before[material.name], material.name).toBeGreaterThan(0);
+    }
     sim.step(500);
     const known = new Set<number>([EMPTY, ...materials.map((material) => material.id)]);
     const { type } = sim.world;
     for (let i = 0; i < type.length; i++) {
       if (!known.has(type[i]!)) throw new Error(`unknown material id ${type[i]} at cell ${i}`);
     }
+    expect(materialCounts(sim.world)).toEqual(before);
   });
 
-  it.skip('walls never move', () => {
-    // Wall is not in the registry yet. When it is, a wall cell must keep its coordinate.
+  it('walls never move', () => {
+    const sim = sprinkle(12345, 2);
+    const before = wallCoordinates(sim.world);
+    expect(before.length).toBeGreaterThan(0);
+    sim.step(1000);
+    expect(wallCoordinates(sim.world)).toEqual(before);
   });
 });
+
+function wallCoordinates(world: World): string[] {
+  const found: string[] = [];
+  for (let y = 0; y < world.height; y++) {
+    for (let x = 0; x < world.width; x++) {
+      if (world.type[world.index(x, y)] === WALL) found.push(`${x},${y}`);
+    }
+  }
+  return found;
+}

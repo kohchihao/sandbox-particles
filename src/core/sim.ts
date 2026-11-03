@@ -1,5 +1,5 @@
 import { updateMaterial } from '../materials/registry';
-import { SAND } from '../materials/sand';
+import { EMPTY } from '../materials/sand';
 import { Rng } from './rng';
 import { World } from './world';
 
@@ -25,7 +25,7 @@ export class Simulation {
     this.world.temp[i] = 0;
     this.world.vx[i] = 0;
     this.world.vy[i] = 0;
-    this.world.shade[i] = type === SAND ? shadeFor(x, y) : 0;
+    this.world.shade[i] = type === EMPTY ? 0 : shadeFor(x, y);
     this.world.clock[i] = 0;
   }
 

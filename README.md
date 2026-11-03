@@ -19,7 +19,7 @@ Paint sand with the mouse or a finger. Add `?debug=1` for FPS and per-step timin
 - `npm run test:unit` — channel swap and the fixed timestep
 - `npm run test:scenario` — sand scenarios written as text pictures (`.` empty, other symbols from the material registry)
 - `npm run test:invariants` — conservation, bounds, determinism, and a random-grid fuzz
-- `npm run test:golden` — three seeded scenes, 600 steps, checked against `tests/golden/replays.json`
+- `npm run test:golden` — seeded scenes, 600 steps, checked against `tests/golden/replays.json`
 - `npm run test:e2e` — Playwright on Chromium desktop and WebKit with the iPhone 13 device profile, against `vite preview` of the e2e build
 - `npm run bench` — steps per second on the full 200×150 grid, compared with `tests/baseline.json`
 
