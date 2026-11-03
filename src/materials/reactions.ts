@@ -1,9 +1,13 @@
 import type { Rng } from '../core/rng';
 import { shadeFor, type World } from '../core/world';
+import { ASH } from './ash';
 import { FIRE } from './fire';
+import { OIL } from './oil';
 import { PLANT } from './plant';
 import { EMPTY } from './sand';
+import { STEAM } from './steam';
 import { WATER } from './water';
+import { WOOD } from './wood';
 
 /**
  * A touching B: A becomes `aBecomes`, B becomes `bBecomes`, with probability `p`.
@@ -24,8 +28,14 @@ export const reactions: readonly Reaction[] = [
   { a: PLANT, b: WATER, aBecomes: PLANT, bBecomes: PLANT, p: 0.02 },
   // Fire spreads into plant. The plant cell becomes fire.
   { a: FIRE, b: PLANT, aBecomes: FIRE, bBecomes: FIRE, p: 1 },
-  // Water puts fire out. The water stays; the flame is gone.
-  { a: FIRE, b: WATER, aBecomes: EMPTY, bBecomes: WATER, p: 1 },
+  // The flame goes out and that water becomes steam. Rare, so a splash does not boil a pool.
+  { a: FIRE, b: WATER, aBecomes: EMPTY, bBecomes: STEAM, p: 0.2 },
+  // Fire spreads into oil on contact.
+  { a: FIRE, b: OIL, aBecomes: FIRE, bBecomes: FIRE, p: 1 },
+  // Oil flowing onto a flame catches just as readily.
+  { a: OIL, b: FIRE, aBecomes: FIRE, bBecomes: FIRE, p: 1 },
+  // Slower than plant. The flame steps into the wood and leaves ash behind.
+  { a: FIRE, b: WOOD, aBecomes: ASH, bBecomes: FIRE, p: 0.15 },
 ];
 
 interface Outcome {

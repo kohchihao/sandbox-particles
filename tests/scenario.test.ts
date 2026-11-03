@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { Simulation } from '../src/core/sim';
+import { ASH } from '../src/materials/ash';
 import { FIRE } from '../src/materials/fire';
+import { OIL } from '../src/materials/oil';
 import { PLANT } from '../src/materials/plant';
 import { installReactions, reactions } from '../src/materials/reactions';
 import { EMPTY, SAND } from '../src/materials/sand';
 import { SMOKE } from '../src/materials/smoke';
+import { STEAM } from '../src/materials/steam';
 import { WATER } from '../src/materials/water';
 import { WALL } from '../src/materials/wall';
+import { WOOD } from '../src/materials/wood';
 import { hashGrid } from './hashGrid';
 import { expectPicture, expectWhere, loadPicture } from './picture';
 
@@ -264,6 +268,44 @@ www
     expect(aboveFloor, 'water is still stacked above the floor').toBe(0);
     expect(maxX - minX + 1, 'water did not spread').toBeGreaterThan(region.width);
   });
+
+  it('floats oil on top of water', () => {
+    const shaft = `
+    #w#
+    #o#
+    #.#
+    ###
+    `;
+    const floated = `
+    #.#
+    #o#
+    #w#
+    ###
+    `;
+    const { sim, region } = loadPicture(shaft, { seed: 1, x: 20, onFloor: true });
+    sim.step(10);
+    expectPicture(sim, floated, region);
+  });
+
+  it('sinks stone under oil and water', () => {
+    const stack = `
+    #n#
+    #o#
+    #w#
+    #.#
+    ###
+    `;
+    const sunk = `
+    #.#
+    #o#
+    #w#
+    #n#
+    ###
+    `;
+    const { sim, region } = loadPicture(stack, { seed: 1, x: 24, onFloor: true });
+    sim.step(10);
+    expectPicture(sim, sunk, region);
+  });
 });
 
 const pond = `
@@ -347,13 +389,74 @@ describe('reactions', () => {
     expect(countId(sim, SMOKE)).toBeGreaterThan(0);
   });
 
-  it('puts fire out when water is dropped on it', () => {
-    const { sim } = loadPicture(doused, { seed: 5, x: 40, y: 20 });
+  it('turns some water into steam and does not boil the whole pool', () => {
+    const { sim, region } = loadPicture(doused, { seed: 5, x: 40, y: 20 });
     const waterBefore = countId(sim, WATER);
-    expect(countId(sim, FIRE)).toBeGreaterThan(0);
-    sim.step(60);
-    expect(countId(sim, FIRE)).toBe(0);
+    sim.step(40);
+    expectPicture(
+      sim,
+      `
+      #####
+      #ttt#
+      #...#
+      #www#
+      #####
+      `,
+      region,
+    );
+    expect(countId(sim, WATER)).toBeGreaterThan(0);
+    expect(countId(sim, WATER) + countId(sim, STEAM)).toBe(waterBefore);
+
+    // A short fall through flame is not enough for every drop to flash off.
+    const splash = loadPicture('ww\nff\nff\nff', { seed: 3, x: 30, y: 10 });
+    const splashBefore = countId(splash.sim, WATER);
+    splash.sim.step(40);
+    expect(countId(splash.sim, WATER)).toBe(splashBefore);
+  });
+
+  it('burns oil quickly, burns wood slowly, and leaves ash', () => {
+    const oil = loadPicture(
+      `
+      ########
+      #fooooo#
+      ########
+      `,
+      { seed: 4, x: 0, y: 0 },
+    );
+    const wood = loadPicture(
+      `
+      ########
+      #fddddd#
+      ########
+      `,
+      { seed: 4, x: 0, y: 0 },
+    );
+    oil.sim.step(20);
+    wood.sim.step(20);
+    const oilLeft = countId(oil.sim, OIL);
+    const woodLeft = countId(wood.sim, WOOD);
+    expect(oilLeft).toBe(0);
+    expect(woodLeft).toBeGreaterThan(oilLeft);
+    expect(countId(wood.sim, ASH)).toBeGreaterThan(0);
+  });
+
+  it('lifts steam through water and condenses it back into water', () => {
+    const kettle = `
+    .#.
+    #w#
+    #w#
+    #t#
+    ###
+    `;
+    const { sim } = loadPicture(kettle, { seed: 6, x: 50, y: 30 });
+    const waterBefore = countId(sim, WATER);
+    sim.step(40);
+    expect(countId(sim, STEAM)).toBeGreaterThan(0);
     expect(countId(sim, WATER)).toBe(waterBefore);
+    expect(lowest(sim, STEAM)).toBeLessThan(highest(sim, WATER));
+    sim.step(80);
+    expect(countId(sim, STEAM)).toBe(0);
+    expect(countId(sim, WATER)).toBe(waterBefore + 1);
   });
 
   it('lifts smoke through water until the smoke is above it', () => {
