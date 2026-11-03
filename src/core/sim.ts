@@ -1,7 +1,8 @@
+import { startingLife } from '../materials/reactions';
 import { updateMaterial } from '../materials/registry';
 import { EMPTY } from '../materials/sand';
 import { Rng } from './rng';
-import { World } from './world';
+import { shadeFor, World } from './world';
 
 export class Simulation {
   readonly world = new World();
@@ -21,7 +22,7 @@ export class Simulation {
     if (!this.world.inBounds(x, y)) return;
     const i = this.world.index(x, y, 'write');
     this.world.type[i] = type;
-    this.world.life[i] = 0;
+    this.world.life[i] = startingLife(type);
     this.world.temp[i] = 0;
     this.world.vx[i] = 0;
     this.world.vy[i] = 0;
@@ -60,6 +61,3 @@ export class Simulation {
   }
 }
 
-function shadeFor(x: number, y: number): number {
-  return (Math.imul(x, 13) + Math.imul(y, 7) + 3) & 31;
-}

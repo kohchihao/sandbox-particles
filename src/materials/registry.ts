@@ -1,7 +1,11 @@
 import type { Rng } from '../core/rng';
 import type { World } from '../core/world';
 import { installDensities, stepArchetype, type Archetype } from './archetypes';
+import { fire } from './fire';
+import { plant } from './plant';
+import { afterMove, cellAftermath, installLifetimes, installReactions, reactions } from './reactions';
 import { EMPTY, sand } from './sand';
+import { smoke } from './smoke';
 import { water } from './water';
 import { wall } from './wall';
 
@@ -13,6 +17,10 @@ interface MaterialBase {
   /** Base RGB. The renderer offsets it by the cell's `shade` byte. */
   color: readonly [number, number, number];
   density: number;
+  /** Steps before `decay`. Counted down in the world's `life` channel. */
+  life?: number;
+  /** Material id written when `life` reaches 0. `0` clears the cell. */
+  decay?: number;
   /** Odd materials that do not follow an archetype. Responsible for the clock stamp. */
   update?(world: World, x: number, y: number, rng: Rng, frame: number): void;
 }
@@ -23,7 +31,7 @@ export type MaterialDef = MaterialBase &
     | { archetype: Exclude<Archetype, 'liquid'> }
   );
 
-export const materials: readonly MaterialDef[] = [sand, water, wall];
+export const materials: readonly MaterialDef[] = [sand, water, wall, plant, fire, smoke];
 
 const byId: Array<MaterialDef | undefined> = [];
 for (const material of materials) {
@@ -34,6 +42,8 @@ for (const material of materials) {
   byId[material.id] = material;
 }
 installDensities(materials);
+installLifetimes(materials);
+installReactions(reactions);
 
 export function materialById(id: number): MaterialDef | undefined {
   return byId[id];
@@ -49,7 +59,7 @@ export function updateMaterial(world: World, x: number, y: number, rng: Rng, fra
     material.update(world, x, y, rng, frame);
     return;
   }
-  stepArchetype(
+  const landed = stepArchetype(
     material.archetype,
     world,
     x,
@@ -60,4 +70,5 @@ export function updateMaterial(world: World, x: number, y: number, rng: Rng, fra
     rng,
     frame,
   );
+  if (cellAftermath[id] !== 0) afterMove(world, landed, rng);
 }
