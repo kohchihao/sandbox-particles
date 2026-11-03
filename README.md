@@ -25,7 +25,7 @@ Paint sand with the mouse or a finger. Add `?debug=1` for FPS and per-step timin
 
 `npm run test:golden:accept` rewrites `tests/golden/replays.json` after an intentional simulation change. A mismatch fails with the expected and actual hashes and writes `test-results/golden/<scene>-before.png` and `<scene>-after.png`.
 
-`npm run bench:accept` rewrites the steps-per-second baseline. The bench takes the median of five trials and fails when that median is more than 20% slower than the committed number. The 20% band covers run-to-run noise. Record the baseline on the machine class CI uses, because a laptop and a GitHub-hosted runner do not land on the same number.
+`npm run bench` takes the median of five trials and fails when that median is more than 20% slower than `tests/baseline.json`. CI keeps that hard gate. The committed baseline is the GitHub-hosted runner's own median, 391 steps/sec, taken from Actions run 41674135292 (trials 391, 389, 391, 391, 390). A faster machine still passes; the VM that first recorded 557 was about 30% above the runner and failed the gate. `npm run bench:accept` rewrites the file with the machine it runs on, so replace the committed number from a CI log rather than from a laptop. The 20% band is for noise on that runner class. The five CI trials sat within 2 steps of each other, so the gate stays a failure rather than a print-only step.
 
 ## Architecture
 

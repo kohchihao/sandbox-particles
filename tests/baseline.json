@@ -1,6 +1,6 @@
 {
   "width": 200,
   "height": 150,
-  "stepsPerSecond": 557,
-  "note": "Median of 5 trials on the full 200x150 grid with half the cells sand (seed 1). Fails when more than 20% slower. Update with npm run bench:accept on the machine you want as the reference."
+  "stepsPerSecond": 391,
+  "note": "Median of 5 trials on the full 200x150 grid, half sand, seed 1. Recorded on the GitHub-hosted ubuntu runner (391 steps/sec). Fails when more than 20% slower. Update from a CI log, not from a faster machine."
 }

@@ -11,7 +11,7 @@ const TRIALS = 5;
 const SLOWDOWN = 0.2;
 const SEED = 1;
 const NOTE =
-  'Median of 5 trials on the full 200x150 grid with half the cells sand (seed 1). Fails when more than 20% slower. Update with npm run bench:accept on the machine you want as the reference.';
+  'Median of 5 trials on the full 200x150 grid, half sand, seed 1. Fails when more than 20% slower. The committed baseline is a GitHub-hosted runner measurement; copy that median from a CI log rather than accepting a faster machine.';
 
 interface Baseline {
   width: number;
@@ -104,6 +104,8 @@ if (measured < limit) {
   console.error(
     `Benchmark is more than 20% slower than the baseline (${rounded} vs ${baseline.stepsPerSecond} steps/sec).`,
   );
-  console.error('Update the baseline on purpose with: npm run bench:accept');
+  console.error(
+    'On the GitHub runner, put this median in tests/baseline.json. npm run bench:accept records the machine it runs on.',
+  );
   process.exit(1);
 }
