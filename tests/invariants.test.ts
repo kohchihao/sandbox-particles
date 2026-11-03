@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Rng } from '../src/core/rng';
 import { Simulation } from '../src/core/sim';
 import { World } from '../src/core/world';
+import { reactions } from '../src/materials/reactions';
 import { materialById, materials } from '../src/materials/registry';
 import { EMPTY } from '../src/materials/sand';
 import { WALL } from '../src/materials/wall';
@@ -35,14 +36,15 @@ function sprinkle(seed: number, density: number): Simulation {
 }
 
 describe('invariants', () => {
-  it('conserves per-material counts over 1000 seeded steps', () => {
+  it('conserves non-reacting materials over 1000 seeded steps', () => {
     const sim = sprinkle(12345, 2);
     const before = materialCounts(sim.world);
     for (const material of materials) {
       expect(before[material.name], material.name).toBeGreaterThan(0);
     }
     sim.step(1000);
-    expect(materialCounts(sim.world)).toEqual(before);
+    expectConserved(before, materialCounts(sim.world));
+    assertKnownMaterials(sim.world);
   });
 
   it('throws on an out-of-grid read', () => {
@@ -73,12 +75,8 @@ describe('invariants', () => {
       expect(before[material.name], material.name).toBeGreaterThan(0);
     }
     sim.step(500);
-    const known = new Set<number>([EMPTY, ...materials.map((material) => material.id)]);
-    const { type } = sim.world;
-    for (let i = 0; i < type.length; i++) {
-      if (!known.has(type[i]!)) throw new Error(`unknown material id ${type[i]} at cell ${i}`);
-    }
-    expect(materialCounts(sim.world)).toEqual(before);
+    expectConserved(before, materialCounts(sim.world));
+    assertKnownMaterials(sim.world);
   });
 
   it('walls never move', () => {
@@ -89,6 +87,38 @@ describe('invariants', () => {
     expect(wallCoordinates(sim.world)).toEqual(before);
   });
 });
+
+/** Ids whose counts reactions or lifetimes are allowed to change. */
+function reactingIds(): Set<number> {
+  const ids = new Set<number>();
+  for (const rule of reactions) {
+    ids.add(rule.a);
+    ids.add(rule.b);
+    if (rule.aBecomes !== EMPTY) ids.add(rule.aBecomes);
+    if (rule.bBecomes !== EMPTY) ids.add(rule.bBecomes);
+  }
+  for (const material of materials) {
+    if (material.life) ids.add(material.id);
+    if (material.decay) ids.add(material.decay);
+  }
+  return ids;
+}
+
+function expectConserved(before: Record<string, number>, after: Record<string, number>): void {
+  const changing = reactingIds();
+  for (const material of materials) {
+    if (changing.has(material.id)) continue;
+    expect(after[material.name], material.name).toBe(before[material.name]);
+  }
+}
+
+function assertKnownMaterials(world: World): void {
+  const known = new Set<number>([EMPTY, ...materials.map((material) => material.id)]);
+  const { type } = world;
+  for (let i = 0; i < type.length; i++) {
+    if (!known.has(type[i]!)) throw new Error(`unknown material id ${type[i]} at cell ${i}`);
+  }
+}
 
 function wallCoordinates(world: World): string[] {
   const found: string[] = [];

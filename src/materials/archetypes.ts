@@ -6,13 +6,29 @@ export type Archetype = 'static' | 'powder' | 'liquid' | 'gas';
 
 /**
  * Destination density. Empty stays 0, so any material denser than air can move into it.
- * A cell may enter a neighbour only when that neighbour is strictly lighter.
+ * Powders and liquids enter a neighbour only when it is strictly lighter.
+ * A gas may also swap straight up through a heavier liquid or gas.
  */
 const densityById = new Uint16Array(256);
+/** 1 when a rising gas may displace this id upward. Powders and static cells stay 0. */
+const fluidById = new Uint8Array(256);
 
-export function installDensities(materials: readonly { id: number; density: number }[]): void {
+export function installDensities(
+  materials: readonly { id: number; density: number; archetype: Archetype }[],
+): void {
   densityById.fill(0);
-  for (const material of materials) densityById[material.id] = material.density;
+  fluidById.fill(0);
+  for (const material of materials) {
+    densityById[material.id] = material.density;
+    if (material.archetype === 'liquid' || material.archetype === 'gas') fluidById[material.id] = 1;
+  }
+}
+
+/** Where the cell updated by the latest `stepArchetype` call ended up. */
+let settledAt = 0;
+
+export function cellSettledAt(): number {
+  return settledAt;
 }
 
 export function stepArchetype(
@@ -38,6 +54,7 @@ export function stepArchetype(
       return;
     case 'static':
       world.clock[from] = frame;
+      settledAt = from;
       return;
   }
 }
@@ -49,6 +66,35 @@ function tryMove(world: World, x: number, y: number, from: number, density: numb
   world.swap(from, to);
   world.clock[to] = frame;
   return true;
+}
+
+/** Same swap as `tryMove`, and records where the gas landed for a following reaction. */
+function tryDrift(world: World, x: number, y: number, from: number, density: number, frame: number): boolean {
+  if (!world.inBounds(x, y)) return false;
+  const to = world.index(x, y);
+  if (densityById[world.type[to]!]! >= density) return false;
+  world.swap(from, to);
+  world.clock[to] = frame;
+  settledAt = to;
+  return true;
+}
+
+/**
+ * Straight up. Same as `tryDrift` into a lighter cell, and also a swap into a heavier
+ * liquid or gas so smoke can rise through water. Powders and static cells still block.
+ */
+function tryRise(world: World, x: number, y: number, from: number, density: number, frame: number): boolean {
+  if (tryDrift(world, x, y, from, density, frame)) return true;
+  if (!world.inBounds(x, y)) return false;
+  const to = world.index(x, y);
+  const dest = world.type[to]!;
+  if (densityById[dest]! > density && fluidById[dest] === 1) {
+    world.swap(from, to);
+    world.clock[to] = frame;
+    settledAt = to;
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -133,16 +179,18 @@ function flowSideways(
 
 /**
  * Up, diagonal up, then sideways. One step in four tries a sideways drift first
- * so a rising column does not stay perfectly straight.
+ * so a rising column does not stay perfectly straight. Only the straight-up step
+ * may pass through a heavier fluid.
  */
 function moveGas(world: World, x: number, y: number, from: number, density: number, rng: Rng, frame: number): void {
   const dir = (rng.nextU32() & 1) === 0 ? -1 : 1;
   const drift = (rng.nextU32() & 3) === 0;
-  if (drift && tryMove(world, x + dir, y, from, density, frame)) return;
-  if (tryMove(world, x, y - 1, from, density, frame)) return;
-  if (tryMove(world, x + dir, y - 1, from, density, frame)) return;
-  if (tryMove(world, x - dir, y - 1, from, density, frame)) return;
-  if (tryMove(world, x + dir, y, from, density, frame)) return;
-  if (tryMove(world, x - dir, y, from, density, frame)) return;
+  if (drift && tryDrift(world, x + dir, y, from, density, frame)) return;
+  if (tryRise(world, x, y - 1, from, density, frame)) return;
+  if (tryDrift(world, x + dir, y - 1, from, density, frame)) return;
+  if (tryDrift(world, x - dir, y - 1, from, density, frame)) return;
+  if (tryDrift(world, x + dir, y, from, density, frame)) return;
+  if (tryDrift(world, x - dir, y, from, density, frame)) return;
   world.clock[from] = frame;
+  settledAt = from;
 }

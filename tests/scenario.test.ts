@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Simulation } from '../src/core/sim';
+import { Simulation } from '../src/core/sim';
+import { FIRE } from '../src/materials/fire';
+import { PLANT } from '../src/materials/plant';
 import { SAND } from '../src/materials/sand';
+import { SMOKE } from '../src/materials/smoke';
 import { WATER } from '../src/materials/water';
 import { WALL } from '../src/materials/wall';
 import { hashGrid } from './hashGrid';
@@ -261,3 +264,132 @@ www
     expect(maxX - minX + 1, 'water did not spread').toBeGreaterThan(region.width);
   });
 });
+
+const pond = `
+#####
+#www#
+#wpw#
+#www#
+#####
+`;
+
+const thicket = `
+ppp
+pfp
+ppp
+`;
+
+const doused = `
+#####
+#www#
+#www#
+#fff#
+#####
+`;
+
+const chimney = `
+.#.
+#w#
+#w#
+#w#
+#k#
+###
+`;
+
+describe('reactions', () => {
+  it('grows plant into neighbouring water over 1000 steps', () => {
+    const { sim } = loadPicture(pond, { seed: 3, x: 12, y: 12 });
+    const plantBefore = countId(sim, PLANT);
+    const waterBefore = countId(sim, WATER);
+    sim.step(1000);
+    const plantAfter = countId(sim, PLANT);
+    const waterAfter = countId(sim, WATER);
+    expect(plantAfter).toBeGreaterThan(plantBefore);
+    expect(waterAfter).toBeLessThan(waterBefore);
+    expect(plantAfter + waterAfter).toBe(plantBefore + waterBefore);
+  });
+
+  it('burns plant and leaves smoke', () => {
+    const { sim } = loadPicture(thicket, { seed: 4, x: 30, y: 40 });
+    const plantBefore = countId(sim, PLANT);
+    sim.step(100);
+    expect(countId(sim, PLANT)).toBeLessThan(plantBefore);
+    expect(countId(sim, SMOKE)).toBeGreaterThan(0);
+  });
+
+  it('puts fire out when water is dropped on it', () => {
+    const { sim } = loadPicture(doused, { seed: 5, x: 40, y: 20 });
+    const waterBefore = countId(sim, WATER);
+    expect(countId(sim, FIRE)).toBeGreaterThan(0);
+    sim.step(60);
+    expect(countId(sim, FIRE)).toBe(0);
+    expect(countId(sim, WATER)).toBe(waterBefore);
+  });
+
+  it('lifts smoke through water until the smoke is above it', () => {
+    const { sim } = loadPicture(chimney, { seed: 6, x: 50, y: 30 });
+    const waterBefore = countId(sim, WATER);
+    sim.step(40);
+    expect(countId(sim, SMOKE)).toBeGreaterThan(0);
+    expect(countId(sim, WATER)).toBe(waterBefore);
+    const lowestSmoke = lowest(sim, SMOKE);
+    const highestWater = highest(sim, WATER);
+    expect(lowestSmoke).toBeLessThan(highestWater);
+  });
+
+  it('spreads fire only to a direct neighbour in one step', () => {
+    // The row is on the top edge, so the flame cannot rise off it. A fresh simulation's
+    // first step scans right to left; one idle step flips the next scan left to right.
+    const row = `f${'p'.repeat(24)}`;
+    // Seed 25 ignites the plant beside the flame. A left-to-right scan would otherwise
+    // keep lighting the next plant in the same step.
+    for (const advance of [false, true]) {
+      const sim = new Simulation(25);
+      if (advance) sim.step(1);
+      for (let x = 0; x < row.length; x++) sim.setCell(x, 0, row[x] === 'f' ? FIRE : PLANT);
+      sim.step(1);
+      const { type, width, height } = sim.world;
+      let fires = 0;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          if (type[y * width + x] !== FIRE) continue;
+          fires += 1;
+          const beside = Math.abs(x) + Math.abs(y) <= 1;
+          expect(beside, `advance ${advance}: fire at (${x}, ${y})`).toBe(true);
+        }
+      }
+      expect(fires, `advance ${advance}`).toBe(2);
+    }
+  });
+
+  it('lets fire and smoke burn out', () => {
+    const { sim } = loadPicture('ff\nkk', { seed: 7, x: 20, y: 20 });
+    expect(countId(sim, FIRE)).toBeGreaterThan(0);
+    expect(countId(sim, SMOKE)).toBeGreaterThan(0);
+    sim.step(1000);
+    expect(countId(sim, FIRE)).toBe(0);
+    expect(countId(sim, SMOKE)).toBe(0);
+  });
+});
+
+function lowest(sim: Simulation, id: number): number {
+  let yMax = -1;
+  const { type, width, height } = sim.world;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (type[y * width + x] === id && y > yMax) yMax = y;
+    }
+  }
+  return yMax;
+}
+
+function highest(sim: Simulation, id: number): number {
+  let yMin = Number.POSITIVE_INFINITY;
+  const { type, width, height } = sim.world;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (type[y * width + x] === id && y < yMin) yMin = y;
+    }
+  }
+  return yMin;
+}

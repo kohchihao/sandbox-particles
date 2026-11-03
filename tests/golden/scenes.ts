@@ -35,6 +35,16 @@ const basin = `
 ##########
 `;
 
+const hearth = `
+##########
+#wwww....#
+#wwww....#
+#pppp....#
+#pppf....#
+#........#
+##########
+`;
+
 export const scenes: readonly Scene[] = [
   {
     name: 'drip',
@@ -55,5 +65,10 @@ export const scenes: readonly Scene[] = [
     name: 'basin',
     seed: 11,
     create: () => loadPicture(basin, { seed: 11, x: 30, y: 20 }).sim,
+  },
+  {
+    name: 'hearth',
+    seed: 21,
+    create: () => loadPicture(hearth, { seed: 21, x: 30, y: 20 }).sim,
   },
 ];

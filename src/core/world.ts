@@ -3,6 +3,11 @@ import { cellIndex, isInBounds } from './neighbours';
 export const GRID_WIDTH = 200;
 export const GRID_HEIGHT = 150;
 
+/** Stable per-cell colour offset. Painted cells and reacted cells share one formula. */
+export function shadeFor(x: number, y: number): number {
+  return (Math.imul(x, 13) + Math.imul(y, 7) + 3) & 31;
+}
+
 export class World {
   readonly width = GRID_WIDTH;
   readonly height = GRID_HEIGHT;

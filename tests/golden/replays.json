@@ -16,6 +16,10 @@
     "basin": {
       "seed": 11,
       "hash": "2bde6ef6"
+    },
+    "hearth": {
+      "seed": 21,
+      "hash": "ceac6746"
     }
   }
 }
