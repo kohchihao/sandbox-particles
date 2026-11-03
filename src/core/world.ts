@@ -25,7 +25,11 @@ export class World {
     this.clock = new Uint8Array(cells);
   }
 
-  index(x: number, y: number): number {
+  /** Debug builds throw when `x` or `y` is outside the grid. Production builds strip that check. */
+  index(x: number, y: number, op: 'read' | 'write' = 'read'): number {
+    if (__SAND_CHECK_BOUNDS__ && !this.inBounds(x, y)) {
+      throw new Error(`out-of-grid ${op} (${x}, ${y})`);
+    }
     return cellIndex(x, y, this.width);
   }
 

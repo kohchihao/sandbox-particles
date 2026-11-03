@@ -19,7 +19,7 @@ export class Simulation {
 
   setCell(x: number, y: number, type: number): void {
     if (!this.world.inBounds(x, y)) return;
-    const i = this.world.index(x, y);
+    const i = this.world.index(x, y, 'write');
     this.world.type[i] = type;
     this.world.life[i] = 0;
     this.world.temp[i] = 0;

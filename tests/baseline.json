@@ -1,0 +1,6 @@
+{
+  "width": 200,
+  "height": 150,
+  "stepsPerSecond": 391,
+  "note": "Median of 5 trials on the full 200x150 grid, half sand, seed 1. Recorded on the GitHub-hosted ubuntu runner (391 steps/sec). Fails when more than 20% slower. Update from a CI log, not from a faster machine."
+}
