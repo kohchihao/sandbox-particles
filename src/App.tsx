@@ -26,7 +26,13 @@ export function App() {
         <canvas ref={canvasRef} width={GRID_WIDTH} height={GRID_HEIGHT} aria-label="Falling sand" />
         {debug ? <pre ref={debugRef} className="debug" /> : null}
       </div>
-      <Toolbar />
+      <Toolbar
+        onMaterial={(materialId) => engineRef.current?.setMaterial(materialId)}
+        onRadius={(radius) => engineRef.current?.setRadius(radius)}
+        onPause={() => engineRef.current?.pause()}
+        onResume={() => engineRef.current?.resume()}
+        onClear={() => engineRef.current?.clear()}
+      />
     </div>
   );
 }
