@@ -34,8 +34,6 @@ export interface Engine {
   pause(): void;
   resume(): void;
   clear(): void;
-  /** Advance one simulation step. No-op while the simulation is running. */
-  stepOnce(): void;
 }
 
 export function startApp(canvas: HTMLCanvasElement, debugEl: HTMLElement | null): Engine {
@@ -139,9 +137,6 @@ export function startApp(canvas: HTMLCanvasElement, debugEl: HTMLElement | null)
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) sim.setCell(x, y, EMPTY);
       }
-    },
-    stepOnce() {
-      if (paused) sim.step(1);
     },
   };
 }
