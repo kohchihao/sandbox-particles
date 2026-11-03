@@ -1,6 +1,6 @@
 import { FixedStep } from './core/loop';
 import { Simulation } from './core/sim';
-import { attachPointer } from './input/pointer';
+import { attachPointer, type PointerController } from './input/pointer';
 import { SAND } from './materials/sand';
 import { Canvas2DRenderer } from './render/canvas2d';
 
@@ -21,6 +21,7 @@ export interface SandHook {
   setCell(x: number, y: number, type: number): void;
   setSeed(seed: number): void;
   step(n: number): void;
+  setRadius(radius: number): void;
 }
 
 const exposeHook =
@@ -53,11 +54,23 @@ export function startApp(canvas: HTMLCanvasElement, debugEl: HTMLElement | null)
   observer.observe(stage);
   fit();
 
-  const detachPointer = attachPointer(canvas, sim.world.width, sim.world.height, (x, y) => {
-    sim.setCell(x, y, SAND);
-  });
+  const pointer = attachPointer(
+    canvas,
+    sim.world.width,
+    sim.world.height,
+    (x, y, materialId) => {
+      sim.setCell(x, y, materialId);
+    },
+    {
+      materialId: SAND,
+      readCell(x, y) {
+        if (!sim.world.inBounds(x, y)) return -1;
+        return sim.world.type[sim.world.index(x, y)] ?? -1;
+      },
+    },
+  );
 
-  if (exposeHook) installHook(sim);
+  if (exposeHook) installHook(sim, pointer);
 
   let raf = 0;
   let last = performance.now();
@@ -98,13 +111,13 @@ export function startApp(canvas: HTMLCanvasElement, debugEl: HTMLElement | null)
     stop() {
       cancelAnimationFrame(raf);
       observer.disconnect();
-      detachPointer();
+      pointer.detach();
       if (exposeHook) delete window.__sand;
     },
   };
 }
 
-function installHook(sim: Simulation): void {
+function installHook(sim: Simulation, pointer: PointerController): void {
   window.__sand = {
     getGrid() {
       const { world } = sim;
@@ -128,6 +141,9 @@ function installHook(sim: Simulation): void {
     },
     step(n) {
       sim.step(n);
+    },
+    setRadius(radius) {
+      pointer.setRadius(radius);
     },
   };
 }
