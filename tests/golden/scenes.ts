@@ -24,6 +24,17 @@ s..s..s
 ..s..s.
 `;
 
+const basin = `
+##########
+#ss......#
+#ss......#
+#ww......#
+#ww......#
+#ww......#
+#........#
+##########
+`;
+
 export const scenes: readonly Scene[] = [
   {
     name: 'drip',
@@ -39,5 +50,10 @@ export const scenes: readonly Scene[] = [
     name: 'scatter',
     seed: 3,
     create: () => loadPicture(scatter, { seed: 3, x: 20, y: 12 }).sim,
+  },
+  {
+    name: 'basin',
+    seed: 11,
+    create: () => loadPicture(basin, { seed: 11, x: 30, y: 20 }).sim,
   },
 ];
