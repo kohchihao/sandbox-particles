@@ -1,7 +1,7 @@
 import { FixedStep } from './core/loop';
 import { Simulation } from './core/sim';
 import { attachPointer, type PointerController } from './input/pointer';
-import { SAND } from './materials/sand';
+import { EMPTY, SAND } from './materials/sand';
 import { Canvas2DRenderer } from './render/canvas2d';
 
 export interface SandGridView {
@@ -29,6 +29,13 @@ const exposeHook =
 
 export interface Engine {
   stop(): void;
+  setMaterial(materialId: number): void;
+  setRadius(radius: number): void;
+  pause(): void;
+  resume(): void;
+  clear(): void;
+  /** Advance one simulation step. No-op while the simulation is running. */
+  stepOnce(): void;
 }
 
 export function startApp(canvas: HTMLCanvasElement, debugEl: HTMLElement | null): Engine {
@@ -78,13 +85,14 @@ export function startApp(canvas: HTMLCanvasElement, debugEl: HTMLElement | null)
   let fpsWindowMs = 0;
   let fps = 0;
   let stepMs = 0;
+  let paused = false;
 
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame);
     const dt = now - last;
     last = now;
     const steps = stepper.take(dt);
-    if (steps > 0) {
+    if (!paused && steps > 0) {
       const started = performance.now();
       sim.step(steps);
       stepMs = (performance.now() - started) / steps;
@@ -113,6 +121,27 @@ export function startApp(canvas: HTMLCanvasElement, debugEl: HTMLElement | null)
       observer.disconnect();
       pointer.detach();
       if (exposeHook) delete window.__sand;
+    },
+    setMaterial(materialId) {
+      pointer.setMaterial(materialId);
+    },
+    setRadius(radius) {
+      pointer.setRadius(radius);
+    },
+    pause() {
+      paused = true;
+    },
+    resume() {
+      paused = false;
+    },
+    clear() {
+      const { width, height } = sim.world;
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) sim.setCell(x, y, EMPTY);
+      }
+    },
+    stepOnce() {
+      if (paused) sim.step(1);
     },
   };
 }

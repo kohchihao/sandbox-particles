@@ -128,11 +128,12 @@ export function attachPointer(
   canvas.addEventListener('pointercancel', onCancel, listenerOptions);
   canvas.addEventListener('lostpointercapture', onLostCapture);
   canvas.addEventListener('contextmenu', onContext);
+  // Scroll and zoom stay blocked on the canvas only. A document-level
+  // touchmove preventDefault would cancel taps on the toolbar.
   canvas.addEventListener('touchstart', blockGesture, listenerOptions);
   canvas.addEventListener('touchmove', blockGesture, listenerOptions);
-  document.addEventListener('touchmove', blockGesture, listenerOptions);
-  document.addEventListener('gesturestart', blockGesture, listenerOptions);
-  document.addEventListener('gesturechange', blockGesture, listenerOptions);
+  canvas.addEventListener('gesturestart', blockGesture, listenerOptions);
+  canvas.addEventListener('gesturechange', blockGesture, listenerOptions);
 
   return {
     setRadius(next: number) {
@@ -153,9 +154,8 @@ export function attachPointer(
       canvas.removeEventListener('contextmenu', onContext);
       canvas.removeEventListener('touchstart', blockGesture, listenerOptions);
       canvas.removeEventListener('touchmove', blockGesture, listenerOptions);
-      document.removeEventListener('touchmove', blockGesture, listenerOptions);
-      document.removeEventListener('gesturestart', blockGesture, listenerOptions);
-      document.removeEventListener('gesturechange', blockGesture, listenerOptions);
+      canvas.removeEventListener('gesturestart', blockGesture, listenerOptions);
+      canvas.removeEventListener('gesturechange', blockGesture, listenerOptions);
       unwatchWindow();
     },
   };

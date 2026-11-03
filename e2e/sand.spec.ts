@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { materials } from '../src/materials/registry';
 
 const SAND = 1;
 const GRID_W = 200;
@@ -160,11 +161,232 @@ async function touchSwipe(page: Page, x0: number, y: number, x1: number, steps =
   return { ...result, row: result.rows[0] ?? '' };
 }
 
-test('toolbar shell renders', async ({ page }) => {
+function materialButtonName(name: string): RegExp {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^${escaped}$`, 'i');
+}
+
+async function paintLine(page: Page, canvas: Locator, x0: number, y0: number, x1: number, y1: number) {
+  const points = await cellPoints(canvas, x0, y0, x1, y1);
+  await page.mouse.move(points.start.x, points.start.y);
+  await page.mouse.down();
+  await page.mouse.move(points.end.x, points.end.y, { steps: 12 });
+  await page.mouse.up();
+}
+
+async function readRowTypes(page: Page, y: number, x0: number, x1: number): Promise<number[]> {
+  return page.evaluate(
+    ({ y, x0, x1 }) => {
+      const grid = window.__sand?.getGrid();
+      if (!grid) throw new Error('window.__sand is missing');
+      const row: number[] = [];
+      for (let x = x0; x <= x1; x++) row.push(grid.type[y * grid.width + x] ?? 0);
+      return row;
+    },
+    { y, x0, x1 },
+  );
+}
+
+async function gridHash(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const type = window.__sand?.getGrid().type;
+    if (!type) throw new Error('window.__sand is missing');
+    let value = 2166136261;
+    for (let i = 0; i < type.length; i++) {
+      value ^= type[i]!;
+      value = Math.imul(value, 16777619);
+    }
+    return value >>> 0;
+  });
+}
+
+async function columnCount(page: Page, x: number, materialId: number): Promise<number> {
+  return page.evaluate(
+    ({ x, materialId }) => {
+      const grid = window.__sand?.getGrid();
+      if (!grid) throw new Error('window.__sand is missing');
+      let count = 0;
+      for (let y = 0; y < grid.height; y++) {
+        if (grid.type[y * grid.width + x] === materialId) count += 1;
+      }
+      return count;
+    },
+    { x, materialId },
+  );
+}
+
+test('every registry material has a toolbar button', async ({ page }) => {
   await openApp(page);
   const toolbar = page.getByRole('toolbar', { name: 'Materials' });
   await expect(toolbar).toBeVisible();
-  await expect(toolbar.getByText('Sand', { exact: true })).toBeVisible();
+  expect(materials.length).toBeGreaterThan(0);
+  for (const material of materials) {
+    const button = toolbar.getByRole('button', { name: materialButtonName(material.name), exact: true });
+    await expect(button).toBeVisible();
+    const swatch = button.locator('.swatch');
+    await expect(swatch).toHaveCSS(
+      'background-color',
+      `rgb(${material.color[0]}, ${material.color[1]}, ${material.color[2]})`,
+    );
+    const box = await button.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+  }
+  const sand = toolbar.getByRole('button', { name: 'Sand', exact: true });
+  await expect(sand).toHaveAttribute('aria-pressed', 'true');
+  await toolbar.getByRole('button', { name: 'Water', exact: true }).click();
+  await expect(toolbar.getByRole('button', { name: 'Water', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(sand).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('picking water and painting puts water cells where painted', async ({ page }) => {
+  const water = materials.find((material) => material.name === 'water');
+  if (!water) throw new Error('registry includes water');
+  const canvas = await openApp(page);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.getByRole('button', { name: 'Water', exact: true }).click();
+  const y = 40;
+  const x0 = 30;
+  const x1 = 90;
+  await paintLine(page, canvas, x0, y, x1, y);
+  const row = await readRowTypes(page, y, x0, x1);
+  expect(row).toEqual(Array(x1 - x0 + 1).fill(water.id));
+});
+
+test('eraser removes painted cells', async ({ page }) => {
+  const canvas = await openApp(page);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  const y = 70;
+  const x0 = 40;
+  const x1 = 100;
+  await paintLine(page, canvas, x0, y, x1, y);
+  const painted = await readRowTypes(page, y, x0, x1);
+  expect(painted).toEqual(Array(x1 - x0 + 1).fill(SAND));
+  await page.getByRole('button', { name: 'Eraser', exact: true }).click();
+  await paintLine(page, canvas, x0, y, x1, y);
+  const erased = await readRowTypes(page, y, x0, x1);
+  expect(erased).toEqual(Array(x1 - x0 + 1).fill(0));
+});
+
+test('pause stops the grid and play resumes it', async ({ page }) => {
+  await openApp(page);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.evaluate((sand) => {
+    const hook = window.__sand;
+    if (!hook) throw new Error('window.__sand is missing');
+    for (let x = 30; x <= 50; x++) hook.setCell(x, 16, sand);
+  }, SAND);
+  const frozen = await gridHash(page);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let frames = 0;
+        const tick = () => {
+          frames += 1;
+          if (frames >= 8) resolve();
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  expect(await gridHash(page)).toBe(frozen);
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await expect.poll(() => gridHash(page), { timeout: 2_000 }).not.toBe(frozen);
+});
+
+test('clear empties the grid', async ({ page }) => {
+  await openApp(page);
+  await page.evaluate((sand) => {
+    const hook = window.__sand;
+    if (!hook) throw new Error('window.__sand is missing');
+    hook.setCell(12, 12, sand);
+    hook.setCell(80, 40, sand);
+    hook.setCell(140, 90, sand);
+  }, SAND);
+  await page.getByRole('button', { name: 'Clear', exact: true }).click();
+  const occupied = await page.evaluate(() => {
+    const type = window.__sand?.getGrid().type;
+    if (!type) throw new Error('window.__sand is missing');
+    let count = 0;
+    for (let i = 0; i < type.length; i++) if (type[i] !== 0) count += 1;
+    return count;
+  });
+  expect(occupied).toBe(0);
+});
+
+test('a bigger brush paints a wider line', async ({ page }) => {
+  const canvas = await openApp(page);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.getByRole('button', { name: 'Small', exact: true }).click();
+  const y = 80;
+  const x0 = 50;
+  const x1 = 110;
+  const probe = 80;
+  await paintLine(page, canvas, x0, y, x1, y);
+  const small = await columnCount(page, probe, SAND);
+  await page.getByRole('button', { name: 'Clear', exact: true }).click();
+  await page.getByRole('button', { name: 'Large', exact: true }).click();
+  await paintLine(page, canvas, x0, y, x1, y);
+  const large = await columnCount(page, probe, SAND);
+  expect(small).toBeGreaterThan(0);
+  expect(large).toBeGreaterThan(small);
+});
+
+test('canvas blocks touch scrolling and toolbar buttons stay tappable', async ({ page }) => {
+  await openApp(page);
+  const touchAction = (selector: string) =>
+    page.locator(selector).evaluate((el) => getComputedStyle(el).touchAction);
+  expect(await touchAction('html')).not.toBe('none');
+  expect(await touchAction('body')).not.toBe('none');
+  expect(await touchAction('#root')).not.toBe('none');
+  expect(await touchAction('canvas')).toBe('none');
+  const pause = page.getByRole('button', { name: 'Pause', exact: true });
+  expect(await pause.evaluate((el) => getComputedStyle(el).touchAction)).not.toBe('none');
+  const blocked = await page.evaluate(() => {
+    const canvas = document.querySelector('canvas');
+    const button = document.querySelector('.toolbar button');
+    if (!canvas || !button) throw new Error('canvas or toolbar button is missing');
+    const onCanvas = new Event('touchmove', { bubbles: true, cancelable: true });
+    canvas.dispatchEvent(onCanvas);
+    const onButton = new Event('touchmove', { bubbles: true, cancelable: true });
+    button.dispatchEvent(onButton);
+    return { canvas: onCanvas.defaultPrevented, button: onButton.defaultPrevented };
+  });
+  expect(blocked.canvas).toBe(true);
+  expect(blocked.button).toBe(false);
+});
+
+test('iPhone toolbar is fully visible and the page does not scroll', async ({ page }) => {
+  test.skip(test.info().project.name !== 'iphone-13', 'toolbar fit runs on WebKit iPhone 13');
+  await openApp(page);
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  if (!viewport) return;
+  const toolbar = page.getByRole('toolbar', { name: 'Materials' });
+  const buttons = toolbar.getByRole('button');
+  const count = await buttons.count();
+  expect(count).toBeGreaterThanOrEqual(materials.length + 1);
+  for (let i = 0; i < count; i++) {
+    const button = buttons.nth(i);
+    await expect(button).toBeVisible();
+    const box = await button.boundingBox();
+    expect(box, `button ${i} has a box`).not.toBeNull();
+    if (!box) continue;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.x).toBeGreaterThanOrEqual(-0.5);
+    expect(box.y).toBeGreaterThanOrEqual(-0.5);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 0.5);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 0.5);
+  }
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await page.getByRole('button', { name: 'Pause', exact: true }).tap();
+  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+  const metrics = await page.evaluate(() => ({
+    scrollY: window.scrollY,
+    scrollHeight: document.documentElement.scrollHeight,
+    clientHeight: document.documentElement.clientHeight,
+  }));
+  expect(metrics.scrollY).toBe(0);
+  expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.clientHeight + 1);
 });
 
 test('mouse drag leaves an unbroken line of sand', async ({ page }) => {
