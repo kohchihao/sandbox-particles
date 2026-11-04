@@ -20,6 +20,10 @@
     "hearth": {
       "seed": 21,
       "hash": "ceac6746"
+    },
+    "stove": {
+      "seed": 27,
+      "hash": "08c9af35"
     }
   }
 }

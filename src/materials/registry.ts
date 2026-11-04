@@ -1,13 +1,18 @@
 import type { Rng } from '../core/rng';
 import type { World } from '../core/world';
 import { cellSettledAt, installDensities, stepArchetype, type Archetype } from './archetypes';
+import { ash } from './ash';
 import { fire } from './fire';
+import { oil } from './oil';
 import { plant } from './plant';
 import { afterMove, cellAftermath, installLifetimes, installReactions, reactions } from './reactions';
 import { EMPTY, sand } from './sand';
 import { smoke } from './smoke';
+import { steam } from './steam';
+import { stone } from './stone';
 import { water } from './water';
 import { wall } from './wall';
+import { wood } from './wood';
 
 interface MaterialBase {
   id: number;
@@ -31,7 +36,19 @@ export type MaterialDef = MaterialBase &
     | { archetype: Exclude<Archetype, 'liquid'> }
   );
 
-export const materials: readonly MaterialDef[] = [sand, water, wall, plant, fire, smoke];
+export const materials: readonly MaterialDef[] = [
+  sand,
+  water,
+  wall,
+  plant,
+  fire,
+  smoke,
+  steam,
+  oil,
+  wood,
+  stone,
+  ash,
+];
 
 const byId: Array<MaterialDef | undefined> = [];
 for (const material of materials) {
