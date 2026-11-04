@@ -68,6 +68,7 @@ export function installReactions(table: readonly Reaction[]): void {
     };
   }
   markAftermath();
+  tablesChanged?.();
 }
 
 export function installLifetimes(materials: readonly { id: number; life?: number; decay?: number }[]): void {
@@ -82,6 +83,7 @@ export function installLifetimes(materials: readonly { id: number; life?: number
     decayTo[material.id] = material.decay ?? EMPTY;
   }
   markAftermath();
+  tablesChanged?.();
 }
 
 export function startingLife(id: number): number {
@@ -93,6 +95,41 @@ function markAftermath(): void {
   for (let id = 0; id < 256; id++) {
     if (lifeSpan[id] !== 0 || rowByA[id]) cellAftermath[id] = 1;
   }
+}
+
+let tablesChanged: (() => void) | undefined;
+
+/** Registry listens so a replaced reaction table updates the step dispatch. */
+export function whenTablesChange(listener: () => void): void {
+  tablesChanged = listener;
+}
+
+export function hasLifetime(id: number): boolean {
+  return lifeSpan[id] !== 0;
+}
+
+/**
+ * RNG cost of the reaction check when it cannot change anything.
+ * `null` when some orthogonal neighbour could still match a rule.
+ */
+export function restingReactionCost(world: World, x: number, y: number, id: number): number | null {
+  const row = rowByA[id];
+  if (!row) return 0;
+  if (neighbourCanReact(world, row, x, y - 1)) return null;
+  if (neighbourCanReact(world, row, x + 1, y)) return null;
+  if (neighbourCanReact(world, row, x, y + 1)) return null;
+  if (neighbourCanReact(world, row, x - 1, y)) return null;
+  return 1;
+}
+
+function neighbourCanReact(
+  world: World,
+  row: Array<Outcome | undefined>,
+  x: number,
+  y: number,
+): boolean {
+  if (!world.inBounds(x, y)) return false;
+  return row[world.type[world.index(x, y)]!] !== undefined;
 }
 
 function chanceOf(p: number): number {
@@ -131,6 +168,7 @@ function tickLife(world: World, index: number, x: number, y: number, frame: numb
   const left = world.life[index]! - 1;
   if (left > 0) {
     world.life[index] = left;
+    world.poke(index);
     return;
   }
   writeCell(world, index, decayTo[id]!, x, y, frame);
@@ -146,4 +184,5 @@ function writeCell(world: World, index: number, id: number, x: number, y: number
   // A cell born from a reaction has already had its turn. Leaving the clock clear lets
   // the scan run the new fire or plant again in this same step, chaining along the sweep.
   world.clock[index] = frame;
+  world.noteChange(index);
 }

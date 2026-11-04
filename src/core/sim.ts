@@ -1,5 +1,5 @@
+import { stepGrid } from '../materials/archetypes';
 import { startingLife } from '../materials/reactions';
-import { updateMaterial } from '../materials/registry';
 import { EMPTY } from '../materials/sand';
 import { Rng } from './rng';
 import { shadeFor, World, GRID_HEIGHT, GRID_WIDTH } from './world';
@@ -29,6 +29,7 @@ export class Simulation {
     this.world.vy[i] = 0;
     this.world.shade[i] = type === EMPTY ? 0 : shadeFor(x, y);
     this.world.clock[i] = 0;
+    this.world.noteChange(i);
   }
 
   step(n = 1): void {
@@ -41,24 +42,6 @@ export class Simulation {
       this.world.clock.fill(0);
       this.frame = 1;
     }
-    const frame = this.frame;
-    const { width, height } = this.world;
-    const leftToRight = (frame & 1) === 0;
-
-    for (let y = height - 1; y >= 0; y--) {
-      if (leftToRight) {
-        for (let x = 0; x < width; x++) this.visit(x, y, frame);
-      } else {
-        for (let x = width - 1; x >= 0; x--) this.visit(x, y, frame);
-      }
-    }
-  }
-
-  private visit(x: number, y: number, frame: number): void {
-    const i = this.world.index(x, y);
-    if (this.world.type[i] === 0) return;
-    if (this.world.clock[i] === frame) return;
-    updateMaterial(this.world, x, y, this.rng, frame);
+    stepGrid(this.world, this.rng, this.frame);
   }
 }
-

@@ -21,11 +21,11 @@ Paint sand with the mouse or a finger. Add `?debug=1` for FPS and per-step timin
 - `npm run test:invariants` — conservation, bounds, determinism, and a random-grid fuzz
 - `npm run test:golden` — seeded scenes, 600 steps, checked against `tests/golden/replays.json`
 - `npm run test:e2e` — Playwright on Chromium desktop and WebKit with the iPhone 13 device profile, against `vite preview` of the e2e build
-- `npm run bench` — steps per second on the full 200×150 grid, compared with `tests/baseline.json`
+- `npm run bench` — steps per second for a busy half-sand scene and a mostly settled pile, at 200×150 and 300×200, compared with `tests/baseline.json`
 
 `npm run test:golden:accept` rewrites `tests/golden/replays.json` after an intentional simulation change. A mismatch fails with the expected and actual hashes and writes `test-results/golden/<scene>-before.png` and `<scene>-after.png`.
 
-`npm run bench` takes the median of five trials and fails when that median is more than 20% slower than `tests/baseline.json`. CI keeps that hard gate. The committed baseline is the GitHub-hosted runner's own median, 391 steps/sec, taken from Actions run 41674135292 (trials 391, 389, 391, 391, 390). A faster machine still passes; the VM that first recorded 557 was about 30% above the runner and failed the gate. `npm run bench:accept` rewrites the file with the machine it runs on, so replace the committed number from a CI log rather than from a laptop. The 20% band is for noise on that runner class. The five CI trials sat within 2 steps of each other, so the gate stays a failure rather than a print-only step.
+`npm run bench` takes the median of five trials for each scene and fails when a recorded median is more than 20% slower than `tests/baseline.json`. The game grid stays 200×150. The 300×200 runs exist only in the bench, so a temperature field can be judged at the size we want to hold at 60fps. `busy` fills half the cells with sand (seed 1). `settled` is a solid sand pile on the lower 55% of the grid plus a short flame. CI keeps the hard gate. A scene with no entry in the baseline file is printed and not gated. `npm run bench:accept` rewrites the file with the machine it runs on, so replace the committed medians from a CI log rather than from a laptop. The 20% band is for noise on that runner class. The gate stays a failure rather than a print-only step.
 
 ## Architecture
 

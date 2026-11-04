@@ -1,6 +1,6 @@
-import { materialById } from '../materials/registry';
-import { EMPTY } from '../materials/sand';
 import type { World } from '../core/world';
+import { CHUNK_SHIFT, CHUNK_SIZE } from '../core/world';
+import { materialById } from '../materials/registry';
 import type { Renderer } from './renderer';
 
 const EMPTY_RGB = [16, 18, 26] as const;
@@ -8,6 +8,9 @@ const EMPTY_RGB = [16, 18, 26] as const;
 export class Canvas2DRenderer implements Renderer {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly image: ImageData;
+  private readonly pixels: Uint32Array;
+  /** Packed RGBA, indexed by `(id << 4) | (shade & 15)`. */
+  private readonly palette: Uint32Array;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -20,7 +23,8 @@ export class Canvas2DRenderer implements Renderer {
     canvas.width = world.width;
     canvas.height = world.height;
     this.image = ctx.createImageData(world.width, world.height);
-    this.image.data.fill(255);
+    this.pixels = new Uint32Array(this.image.data.buffer, this.image.data.byteOffset, world.width * world.height);
+    this.palette = buildPalette();
   }
 
   setDisplaySize(cssWidth: number, cssHeight: number): void {
@@ -29,28 +33,57 @@ export class Canvas2DRenderer implements Renderer {
   }
 
   draw(world: World): void {
-    const data = this.image.data;
-    const { type, shade } = world;
-    const count = type.length;
+    if (world.dirtyCount === 0) return;
+    const { type, shade, width, height, dirty, chunkCols } = world;
+    const pixels = this.pixels;
+    const palette = this.palette;
+    const size = CHUNK_SIZE;
 
-    for (let i = 0; i < count; i++) {
-      const offset = i * 4;
-      const id = type[i]!;
-      if (id === EMPTY) {
-        data[offset] = EMPTY_RGB[0];
-        data[offset + 1] = EMPTY_RGB[1];
-        data[offset + 2] = EMPTY_RGB[2];
-        continue;
+    for (let chunk = 0; chunk < dirty.length; chunk++) {
+      if (dirty[chunk] === 0) continue;
+      const cx = chunk % chunkCols;
+      const cy = (chunk / chunkCols) | 0;
+      const x0 = cx << CHUNK_SHIFT;
+      const y0 = cy << CHUNK_SHIFT;
+      const x1 = Math.min(width, x0 + size);
+      const y1 = Math.min(height, y0 + size);
+      for (let y = y0; y < y1; y++) {
+        const row = y * width;
+        for (let x = x0; x < x1; x++) {
+          const i = row + x;
+          pixels[i] = palette[(type[i]! << 4) | (shade[i]! & 15)]!;
+        }
       }
-      const color = materialById(id)?.color;
-      const jitter = (shade[i]! & 15) - 8;
-      data[offset] = clamp8((color?.[0] ?? 255) + jitter);
-      data[offset + 1] = clamp8((color?.[1] ?? 255) + jitter);
-      data[offset + 2] = clamp8((color?.[2] ?? 255) + jitter);
     }
 
-    this.ctx.putImageData(this.image, 0, 0);
+    this.ctx.putImageData(
+      this.image,
+      0,
+      0,
+      world.dirtyMinX,
+      world.dirtyMinY,
+      world.dirtyMaxX - world.dirtyMinX + 1,
+      world.dirtyMaxY - world.dirtyMinY + 1,
+    );
+    world.clearDirty();
   }
+}
+
+function buildPalette(): Uint32Array {
+  const probe = new Uint32Array(1);
+  new Uint8Array(probe.buffer)[0] = 1;
+  const littleEndian = probe[0] === 1;
+  const palette = new Uint32Array(256 * 16);
+  const pack = (r: number, g: number, b: number) =>
+    littleEndian ? (255 << 24) | (b << 16) | (g << 8) | r : (r << 24) | (g << 16) | (b << 8) | 255;
+  for (let id = 0; id < 256; id++) {
+    const color = id === 0 ? EMPTY_RGB : (materialById(id)?.color ?? [255, 255, 255]);
+    for (let shade = 0; shade < 16; shade++) {
+      const jitter = id === 0 ? 0 : shade - 8;
+      palette[(id << 4) | shade] = pack(clamp8(color[0] + jitter), clamp8(color[1] + jitter), clamp8(color[2] + jitter));
+    }
+  }
+  return palette;
 }
 
 function clamp8(value: number): number {
