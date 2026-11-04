@@ -7,6 +7,7 @@ import {
   SLEEP_INERT,
   type World,
 } from '../core/world';
+import { applyHeat, heatBlocksRest, thermalById } from './heat';
 import { afterMove, cellAftermath, hasLifetime, restingReactionCost } from './reactions';
 import { EMPTY } from './sand';
 
@@ -54,7 +55,9 @@ export function bindDispatch(
       flowById[material.id] = flow;
       if (flow > reach) reach = flow;
     }
-    if (arch === ARCH_POWDER && aftermath[material.id] === 0) simplePowder[material.id] = 1;
+    if (arch === ARCH_POWDER && aftermath[material.id] === 0 && thermalById[material.id] === 0) {
+      simplePowder[material.id] = 1;
+    }
   }
   setHorizontalInfluence(reach);
 }
@@ -374,6 +377,8 @@ function scanRange(
       frame,
     );
     if (cellAftermath[id] !== 0) afterMove(world, cellSettledAt(), rng, frame);
+    const settled = cellSettledAt();
+    if (thermalById[type[settled]!] !== 0) applyHeat(world, settled, frame);
   }
 }
 
@@ -447,6 +452,9 @@ function cellRestCost(world: World, x: number, y: number): number | null {
   const id = world.type[y * world.width + x]!;
   if (id === 0) return 0;
   if (hasLifetime(id)) return null;
+  // A temperature that can still change has to run the real update. The rest
+  // path only replays RNG draws, so it cannot conduct or cross a threshold.
+  if (heatBlocksRest(world, x, y, id)) return null;
   const reaction = restingReactionCost(world, x, y, id);
   if (reaction === null) return null;
   const move = restingMoveCost(world, x, y, id);

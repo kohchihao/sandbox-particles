@@ -3,10 +3,14 @@ import { Rng } from '../src/core/rng';
 import { Simulation } from '../src/core/sim';
 import { CHUNK_SHIFT, World } from '../src/core/world';
 import { FIRE } from '../src/materials/fire';
+import { thermalProducts } from '../src/materials/heat';
+import { ICE } from '../src/materials/ice';
+import { LAVA } from '../src/materials/lava';
 import { OIL } from '../src/materials/oil';
 import { reactions } from '../src/materials/reactions';
 import { materialById, materials } from '../src/materials/registry';
 import { EMPTY, SAND } from '../src/materials/sand';
+import { SNOW } from '../src/materials/snow';
 import { WALL } from '../src/materials/wall';
 import { WATER } from '../src/materials/water';
 import { hashGrid } from './hashGrid';
@@ -125,6 +129,16 @@ describe('invariants', () => {
         [112, 95, OIL],
         [111, 95, OIL],
         [112, 96, OIL],
+        // New materials on the empty row above the pile and on the sleeping sand itself.
+        [128, 95, LAVA],
+        [127, 95, LAVA],
+        [128, 96, LAVA],
+        [160, 95, ICE],
+        [159, 95, ICE],
+        [160, 96, ICE],
+        [176, 95, SNOW],
+        [175, 95, SNOW],
+        [176, 96, SNOW],
       ];
       for (const [x, y] of paints) {
         expect(chunkAwake(sleeping.world, x, y), `seed ${seed} (${x},${y}) was already awake`).toBe(0);
@@ -171,6 +185,7 @@ function reactingIds(): Set<number> {
     if (material.life) ids.add(material.id);
     if (material.decay) ids.add(material.decay);
   }
+  for (const id of thermalProducts()) ids.add(id);
   return ids;
 }
 

@@ -1,5 +1,6 @@
 import type { Rng } from '../core/rng';
 import { shadeFor, type World } from '../core/world';
+import { startingTemp } from './heat';
 import { ASH } from './ash';
 import { FIRE } from './fire';
 import { OIL } from './oil';
@@ -174,10 +175,18 @@ function tickLife(world: World, index: number, x: number, y: number, frame: numb
   writeCell(world, index, decayTo[id]!, x, y, frame);
 }
 
+/** Phase changes and reactions share this write. Existing ids start at temperature 0. */
+export function writeMaterial(world: World, index: number, id: number, frame: number): void {
+  const width = world.width;
+  const x = index % width;
+  const y = (index / width) | 0;
+  writeCell(world, index, id, x, y, frame);
+}
+
 function writeCell(world: World, index: number, id: number, x: number, y: number, frame: number): void {
   world.type[index] = id;
   world.life[index] = lifeSpan[id] ?? 0;
-  world.temp[index] = 0;
+  world.temp[index] = startingTemp(id);
   world.vx[index] = 0;
   world.vy[index] = 0;
   world.shade[index] = id === EMPTY ? 0 : shadeFor(x, y);

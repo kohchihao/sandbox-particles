@@ -121,13 +121,27 @@ canvas {
 @media (max-width: 720px) {
   .toolbar {
     align-items: stretch;
-    gap: 6px;
+    gap: 4px;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
   }
 
   .toolbar-group {
     flex: 1 0 100%;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+    gap: 4px;
+  }
+
+  /* Fifteen swatches (fourteen materials plus eraser) in three rows on a phone. */
+  .toolbar-materials {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .toolbar-materials .tool {
+    padding: 4px 2px;
+    font-size: 12px;
+    gap: 3px;
+    white-space: nowrap;
   }
 }
 

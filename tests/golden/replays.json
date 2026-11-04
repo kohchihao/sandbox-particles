@@ -24,6 +24,18 @@
     "stove": {
       "seed": 27,
       "hash": "08c9af35"
+    },
+    "quench": {
+      "seed": 31,
+      "hash": "25528c65"
+    },
+    "thaw": {
+      "seed": 32,
+      "hash": "1d7a3cbb"
+    },
+    "flurry": {
+      "seed": 33,
+      "hash": "0417ba6e"
     }
   }
 }
