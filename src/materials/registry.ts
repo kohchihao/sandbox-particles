@@ -1,11 +1,11 @@
 import type { Rng } from '../core/rng';
 import type { World } from '../core/world';
-import { cellSettledAt, installDensities, stepArchetype, type Archetype } from './archetypes';
+import { bindDispatch, cellSettledAt, installDensities, stepArchetype, type Archetype } from './archetypes';
 import { ash } from './ash';
 import { fire } from './fire';
 import { oil } from './oil';
 import { plant } from './plant';
-import { afterMove, cellAftermath, installLifetimes, installReactions, reactions } from './reactions';
+import { afterMove, cellAftermath, installLifetimes, installReactions, reactions, whenTablesChange } from './reactions';
 import { EMPTY, sand } from './sand';
 import { smoke } from './smoke';
 import { steam } from './steam';
@@ -61,6 +61,8 @@ for (const material of materials) {
 installDensities(materials);
 installLifetimes(materials);
 installReactions(reactions);
+whenTablesChange(() => bindDispatch(materials, cellAftermath));
+bindDispatch(materials, cellAftermath);
 
 export function materialById(id: number): MaterialDef | undefined {
   return byId[id];
