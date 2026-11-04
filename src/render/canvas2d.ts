@@ -1,5 +1,6 @@
 import type { World } from '../core/world';
 import { CHUNK_SHIFT, CHUNK_SIZE } from '../core/world';
+import { LAVA } from '../materials/lava';
 import { materialById } from '../materials/registry';
 import type { Renderer } from './renderer';
 
@@ -34,7 +35,7 @@ export class Canvas2DRenderer implements Renderer {
 
   draw(world: World): void {
     if (world.dirtyCount === 0) return;
-    const { type, shade, width, height, dirty, chunkCols } = world;
+    const { type, shade, temp, width, height, dirty, chunkCols } = world;
     const pixels = this.pixels;
     const palette = this.palette;
     const size = CHUNK_SIZE;
@@ -51,7 +52,9 @@ export class Canvas2DRenderer implements Renderer {
         const row = y * width;
         for (let x = x0; x < x1; x++) {
           const i = row + x;
-          pixels[i] = palette[(type[i]! << 4) | (shade[i]! & 15)]!;
+          const id = type[i]!;
+          const tint = shade[i]! & 15;
+          pixels[i] = id === LAVA ? lavaGlow(temp[i]!, tint) : palette[(id << 4) | tint]!;
         }
       }
     }
@@ -69,18 +72,38 @@ export class Canvas2DRenderer implements Renderer {
   }
 }
 
-function buildPalette(): Uint32Array {
+const littleEndian = (() => {
   const probe = new Uint32Array(1);
   new Uint8Array(probe.buffer)[0] = 1;
-  const littleEndian = probe[0] === 1;
+  return probe[0] === 1;
+})();
+
+function pack(r: number, g: number, b: number): number {
+  return littleEndian ? (255 << 24) | (b << 16) | (g << 8) | r : (r << 24) | (g << 16) | (b << 8) | 255;
+}
+
+/** Fresh lava is yellow-white. It dulls toward the swatch orange as it cools to stone. */
+function lavaGlow(temp: number, shade: number): number {
+  let heat = temp - 160;
+  if (heat < 0) heat = 0;
+  if (heat > 560) heat = 560;
+  const g = 64 + ((heat * 150) / 560) | 0;
+  const b = 8 + ((heat * 48) / 560) | 0;
+  const jitter = shade - 8;
+  return pack(clamp8(255 + jitter), clamp8(g + jitter), clamp8(b + jitter));
+}
+
+function buildPalette(): Uint32Array {
   const palette = new Uint32Array(256 * 16);
-  const pack = (r: number, g: number, b: number) =>
-    littleEndian ? (255 << 24) | (b << 16) | (g << 8) | r : (r << 24) | (g << 16) | (b << 8) | 255;
   for (let id = 0; id < 256; id++) {
     const color = id === 0 ? EMPTY_RGB : (materialById(id)?.color ?? [255, 255, 255]);
     for (let shade = 0; shade < 16; shade++) {
       const jitter = id === 0 ? 0 : shade - 8;
-      palette[(id << 4) | shade] = pack(clamp8(color[0] + jitter), clamp8(color[1] + jitter), clamp8(color[2] + jitter));
+      palette[(id << 4) | shade] = pack(
+        clamp8(color[0] + jitter),
+        clamp8(color[1] + jitter),
+        clamp8(color[2] + jitter),
+      );
     }
   }
   return palette;

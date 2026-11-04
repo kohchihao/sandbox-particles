@@ -32,7 +32,7 @@ export function Toolbar({
 
   return (
     <footer className="toolbar" role="toolbar" aria-label="Materials">
-      <div className="toolbar-group" role="group" aria-label="Material">
+      <div className="toolbar-group toolbar-materials" role="group" aria-label="Material">
         {materials.map((material) => {
           const selected = materialId === material.id;
           return (

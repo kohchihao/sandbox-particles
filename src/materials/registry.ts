@@ -3,11 +3,15 @@ import type { World } from '../core/world';
 import { bindDispatch, cellSettledAt, installDensities, stepArchetype, type Archetype } from './archetypes';
 import { ash } from './ash';
 import { fire } from './fire';
+import { applyHeat, installHeat, thermalById } from './heat';
+import { ice } from './ice';
+import { lava } from './lava';
 import { oil } from './oil';
 import { plant } from './plant';
 import { afterMove, cellAftermath, installLifetimes, installReactions, reactions, whenTablesChange } from './reactions';
 import { EMPTY, sand } from './sand';
 import { smoke } from './smoke';
+import { snow } from './snow';
 import { steam } from './steam';
 import { stone } from './stone';
 import { water } from './water';
@@ -28,6 +32,23 @@ interface MaterialBase {
   decay?: number;
   /** Odd materials that do not follow an archetype. Responsible for the clock stamp. */
   update?(world: World, x: number, y: number, rng: Rng, frame: number): void;
+  /** Cell temperature written by paint and by a phase change into this id. Ambient is 0. */
+  temp?: number;
+  /** Heat moved toward a conductive neighbour each step. 0 does not conduct. */
+  conductivity?: number;
+  /** Become `meltsTo` at or above this temperature. */
+  meltsAt?: number;
+  meltsTo?: number;
+  /** Become `boilsTo` at or above this temperature. */
+  boilsAt?: number;
+  boilsTo?: number;
+  /** Become `freezesTo` at or below this temperature. */
+  freezesAt?: number;
+  freezesTo?: number;
+  /** Degrees added to a melting neighbour each step. Not stored on this cell. */
+  warms?: number;
+  /** Degrees lost each step while this cell is still above `freezesAt`. */
+  cools?: number;
 }
 
 export type MaterialDef = MaterialBase &
@@ -48,6 +69,9 @@ export const materials: readonly MaterialDef[] = [
   wood,
   stone,
   ash,
+  lava,
+  ice,
+  snow,
 ];
 
 const byId: Array<MaterialDef | undefined> = [];
@@ -61,6 +85,7 @@ for (const material of materials) {
 installDensities(materials);
 installLifetimes(materials);
 installReactions(reactions);
+installHeat(materials);
 whenTablesChange(() => bindDispatch(materials, cellAftermath));
 bindDispatch(materials, cellAftermath);
 
@@ -90,4 +115,6 @@ export function updateMaterial(world: World, x: number, y: number, rng: Rng, fra
     frame,
   );
   if (cellAftermath[id] !== 0) afterMove(world, cellSettledAt(), rng, frame);
+  const settled = cellSettledAt();
+  if (thermalById[world.type[settled]!] !== 0) applyHeat(world, settled, frame);
 }

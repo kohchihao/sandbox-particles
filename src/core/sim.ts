@@ -1,4 +1,5 @@
 import { stepGrid } from '../materials/archetypes';
+import { startingTemp } from '../materials/heat';
 import { startingLife } from '../materials/reactions';
 import { EMPTY } from '../materials/sand';
 import { Rng } from './rng';
@@ -24,7 +25,7 @@ export class Simulation {
     const i = this.world.index(x, y, 'write');
     this.world.type[i] = type;
     this.world.life[i] = startingLife(type);
-    this.world.temp[i] = 0;
+    this.world.temp[i] = startingTemp(type);
     this.world.vx[i] = 0;
     this.world.vy[i] = 0;
     this.world.shade[i] = type === EMPTY ? 0 : shadeFor(x, y);

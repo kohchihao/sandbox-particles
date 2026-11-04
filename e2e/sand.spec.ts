@@ -377,6 +377,9 @@ test('iPhone toolbar is fully visible and the page does not scroll', async ({ pa
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + 0.5);
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 0.5);
   }
+  if (process.env.TOOLBAR_SHOT) {
+    await page.screenshot({ path: process.env.TOOLBAR_SHOT, fullPage: true });
+  }
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
   await page.getByRole('button', { name: 'Pause', exact: true }).tap();
   await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();

@@ -13,4 +13,6 @@ export const fire = {
   density: 6,
   life: 64,
   decay: SMOKE,
+  // Warms a melting neighbour each step. The flame holds no temperature and does not conduct.
+  warms: 8,
 } satisfies MaterialDef;

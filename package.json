@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.sim.json",
     "test": "vitest run",
-    "test:unit": "vitest run tests/sim.test.ts tests/input.test.ts",
+    "test:unit": "vitest run tests/sim.test.ts tests/input.test.ts tests/heat.test.ts",
     "test:scenario": "vitest run tests/scenario.test.ts",
     "test:invariants": "vitest run tests/invariants.test.ts",
     "test:golden": "vitest run tests/golden.test.ts",

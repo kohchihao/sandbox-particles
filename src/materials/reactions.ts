@@ -1,5 +1,6 @@
 import type { Rng } from '../core/rng';
 import { shadeFor, type World } from '../core/world';
+import { startingTemp } from './heat';
 import { ASH } from './ash';
 import { FIRE } from './fire';
 import { OIL } from './oil';
@@ -174,10 +175,36 @@ function tickLife(world: World, index: number, x: number, y: number, frame: numb
   writeCell(world, index, decayTo[id]!, x, y, frame);
 }
 
-function writeCell(world: World, index: number, id: number, x: number, y: number, frame: number): void {
+/**
+ * Paint-style write used by reactions and by lava quenching in water.
+ * `temp` overrides the material's starting temperature. Heat phase changes pass
+ * the temperature that crossed the line; omitting it uses `startingTemp`.
+ */
+export function writeMaterial(
+  world: World,
+  index: number,
+  id: number,
+  frame: number,
+  temp?: number,
+): void {
+  const width = world.width;
+  const x = index % width;
+  const y = (index / width) | 0;
+  writeCell(world, index, id, x, y, frame, temp);
+}
+
+function writeCell(
+  world: World,
+  index: number,
+  id: number,
+  x: number,
+  y: number,
+  frame: number,
+  temp?: number,
+): void {
   world.type[index] = id;
   world.life[index] = lifeSpan[id] ?? 0;
-  world.temp[index] = 0;
+  world.temp[index] = temp === undefined ? startingTemp(id) : temp;
   world.vx[index] = 0;
   world.vy[index] = 0;
   world.shade[index] = id === EMPTY ? 0 : shadeFor(x, y);

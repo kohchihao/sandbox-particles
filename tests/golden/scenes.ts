@@ -55,6 +55,29 @@ const stove = `
 ##########
 `;
 
+const quench = `
+##########
+#wwwwww..#
+#wwwwww..#
+#..llll..#
+#........#
+##########
+`;
+
+const thaw = `
+##########
+#iiiiii..#
+#llllll..#
+##########
+`;
+
+const flurry = `
+############
+#ccc.......#
+#f.........#
+############
+`;
+
 export const scenes: readonly Scene[] = [
   {
     name: 'drip',
@@ -85,5 +108,20 @@ export const scenes: readonly Scene[] = [
     name: 'stove',
     seed: 27,
     create: () => loadPicture(stove, { seed: 27, x: 30, y: 20 }).sim,
+  },
+  {
+    name: 'quench',
+    seed: 31,
+    create: () => loadPicture(quench, { seed: 31, x: 30, y: 20 }).sim,
+  },
+  {
+    name: 'thaw',
+    seed: 32,
+    create: () => loadPicture(thaw, { seed: 32, x: 30, y: 20 }).sim,
+  },
+  {
+    name: 'flurry',
+    seed: 33,
+    create: () => loadPicture(flurry, { seed: 33, x: 30, y: 20 }).sim,
   },
 ];
