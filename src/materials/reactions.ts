@@ -181,8 +181,8 @@ function writeCell(world: World, index: number, id: number, x: number, y: number
   world.vx[index] = 0;
   world.vy[index] = 0;
   world.shade[index] = id === EMPTY ? 0 : shadeFor(x, y);
-  // A cell born from a reaction has already had its turn. Leaving the clock clear lets
-  // the scan run the new fire or plant again in this same step, chaining along the sweep.
+  // A cell born from a reaction has already had its turn. Stamping the clock stops
+  // the scan from running that cell again in this same step.
   world.clock[index] = frame;
   world.noteChange(index);
 }
