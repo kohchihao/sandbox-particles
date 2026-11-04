@@ -9,8 +9,8 @@ export function shadeFor(x: number, y: number): number {
 }
 
 export class World {
-  readonly width = GRID_WIDTH;
-  readonly height = GRID_HEIGHT;
+  readonly width: number;
+  readonly height: number;
   readonly type: Uint8Array;
   readonly life: Uint8Array;
   readonly temp: Int16Array;
@@ -19,8 +19,10 @@ export class World {
   readonly shade: Uint8Array;
   readonly clock: Uint8Array;
 
-  constructor() {
-    const cells = GRID_WIDTH * GRID_HEIGHT;
+  constructor(width = GRID_WIDTH, height = GRID_HEIGHT) {
+    this.width = width;
+    this.height = height;
+    const cells = width * height;
     this.type = new Uint8Array(cells);
     this.life = new Uint8Array(cells);
     this.temp = new Int16Array(cells);

@@ -2,15 +2,16 @@ import { startingLife } from '../materials/reactions';
 import { updateMaterial } from '../materials/registry';
 import { EMPTY } from '../materials/sand';
 import { Rng } from './rng';
-import { shadeFor, World } from './world';
+import { shadeFor, World, GRID_HEIGHT, GRID_WIDTH } from './world';
 
 export class Simulation {
-  readonly world = new World();
+  readonly world: World;
   readonly rng: Rng;
   /** Step id stamped into `clock`. Never 0, so a fresh cell stays eligible. */
   private frame = 0;
 
-  constructor(seed = 1) {
+  constructor(seed = 1, width = GRID_WIDTH, height = GRID_HEIGHT) {
+    this.world = new World(width, height);
     this.rng = new Rng(seed);
   }
 
