@@ -127,23 +127,19 @@ const DIRS = [
 ] as const;
 
 /**
- * True when this cell cannot sleep. A different orthogonal temperature can
- * still flow, and a threshold or a cool-down will change the cell next step.
+ * True when `applyHeat` would change this cell. A temperature gap counts only
+ * when both cells conduct and the shared edge actually moves heat. A melting
+ * cell also stays awake beside a neighbour that warms it. A non-conductor at a
+ * different temperature, such as ice on a wall, does not.
  */
 export function heatBlocksRest(world: World, x: number, y: number, id: number): boolean {
-  const width = world.width;
-  const index = y * width + x;
+  if (wouldQuench(world, x, y, id)) return true;
+  if (thermalById[id] === 0) return false;
+  const index = y * world.width + x;
   const t = world.temp[index]!;
-  if (pendingPhase(id, t)) return true;
-  const line = freezesAt[id]!;
-  if (coolsById[id] !== 0 && line !== NO_COLD && t > line) return true;
-  const temp = world.temp;
-  const height = world.height;
-  if (y > 0 && temp[index - width] !== t) return true;
-  if (x + 1 < width && temp[index + 1] !== t) return true;
-  if (y + 1 < height && temp[index + width] !== t) return true;
-  if (x > 0 && temp[index - 1] !== t) return true;
-  return false;
+  const next = nextTemp(world, index, id, t);
+  if (pendingPhase(id, next)) return true;
+  return next !== t;
 }
 
 function pendingPhase(id: number, t: number): boolean {
@@ -158,17 +154,38 @@ function pendingPhase(id: number, t: number): boolean {
 /**
  * Conduction, cool-down, warmth from a fire, then one phase change.
  * Lava touching water becomes stone and that water becomes steam before either
- * cell can boil or sink past the contact. The product is born at its starting
- * temperature. No random draws: the movement RNG stays on its old stream.
+ * cell can boil or sink past the contact. A melt, freeze, or boil keeps `next`
+ * so the change does not invent heat or cold. No random draws.
  */
 export function applyHeat(world: World, index: number, frame: number): void {
   if (quench(world, index, frame)) return;
   const id = world.type[index]!;
   if (thermalById[id] === 0) return;
+  const t = world.temp[index]!;
+  const next = nextTemp(world, index, id, t);
+  const boil = boilsAt[id]!;
+  if (boil !== NO_HOT && next >= boil) {
+    writeMaterial(world, index, boilsTo[id]!, frame, next);
+    return;
+  }
+  const melt = meltsAt[id]!;
+  if (melt !== NO_HOT && next >= melt) {
+    writeMaterial(world, index, meltsTo[id]!, frame, next);
+    return;
+  }
+  const freeze = freezesAt[id]!;
+  if (freeze !== NO_COLD && next <= freeze) {
+    writeMaterial(world, index, freezesTo[id]!, frame, next);
+    return;
+  }
+  if (next !== t) storeTemp(world, index, next);
+}
+
+/** Temperature after one heat step, before a phase change. */
+function nextTemp(world: World, index: number, id: number, t: number): number {
   const width = world.width;
   const x = index % width;
   const y = (index / width) | 0;
-  const t = world.temp[index]!;
   const k = conductivity[id]!;
   let next = t - coolsById[id]!;
   const melts = meltsAt[id] !== NO_HOT;
@@ -185,24 +202,22 @@ export function applyHeat(world: World, index: number, frame: number): void {
     }
     if (melts) next += warmsById[nid]!;
   }
-  if (next > 32767) next = 32767;
-  else if (next < -32768) next = -32768;
-  const boil = boilsAt[id]!;
-  if (boil !== NO_HOT && next >= boil) {
-    writeMaterial(world, index, boilsTo[id]!, frame);
-    return;
+  if (next > 32767) return 32767;
+  if (next < -32768) return -32768;
+  return next;
+}
+
+function wouldQuench(world: World, x: number, y: number, id: number): boolean {
+  if (id !== LAVA && id !== WATER) return false;
+  const want = id === LAVA ? WATER : LAVA;
+  const width = world.width;
+  for (const [dx, dy] of DIRS) {
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= width || ny >= world.height) continue;
+    if (world.type[ny * width + nx] === want) return true;
   }
-  const melt = meltsAt[id]!;
-  if (melt !== NO_HOT && next >= melt) {
-    writeMaterial(world, index, meltsTo[id]!, frame);
-    return;
-  }
-  const freeze = freezesAt[id]!;
-  if (freeze !== NO_COLD && next <= freeze) {
-    writeMaterial(world, index, freezesTo[id]!, frame);
-    return;
-  }
-  if (next !== t) storeTemp(world, index, next);
+  return false;
 }
 
 /**

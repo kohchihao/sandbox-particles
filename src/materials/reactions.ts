@@ -175,18 +175,36 @@ function tickLife(world: World, index: number, x: number, y: number, frame: numb
   writeCell(world, index, decayTo[id]!, x, y, frame);
 }
 
-/** Phase changes and reactions share this write. Existing ids start at temperature 0. */
-export function writeMaterial(world: World, index: number, id: number, frame: number): void {
+/**
+ * Paint-style write used by reactions and by lava quenching in water.
+ * `temp` overrides the material's starting temperature. Heat phase changes pass
+ * the temperature that crossed the line; omitting it uses `startingTemp`.
+ */
+export function writeMaterial(
+  world: World,
+  index: number,
+  id: number,
+  frame: number,
+  temp?: number,
+): void {
   const width = world.width;
   const x = index % width;
   const y = (index / width) | 0;
-  writeCell(world, index, id, x, y, frame);
+  writeCell(world, index, id, x, y, frame, temp);
 }
 
-function writeCell(world: World, index: number, id: number, x: number, y: number, frame: number): void {
+function writeCell(
+  world: World,
+  index: number,
+  id: number,
+  x: number,
+  y: number,
+  frame: number,
+  temp?: number,
+): void {
   world.type[index] = id;
   world.life[index] = lifeSpan[id] ?? 0;
-  world.temp[index] = startingTemp(id);
+  world.temp[index] = temp === undefined ? startingTemp(id) : temp;
   world.vx[index] = 0;
   world.vy[index] = 0;
   world.shade[index] = id === EMPTY ? 0 : shadeFor(x, y);

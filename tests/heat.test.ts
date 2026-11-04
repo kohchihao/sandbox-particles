@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Simulation } from '../src/core/sim';
+import { CHUNK_SHIFT } from '../src/core/world';
 import { ICE } from '../src/materials/ice';
 import { LAVA } from '../src/materials/lava';
 import { materialById } from '../src/materials/registry';
 import { SNOW } from '../src/materials/snow';
 import { STEAM } from '../src/materials/steam';
 import { STONE } from '../src/materials/stone';
+import { WALL } from '../src/materials/wall';
 import { WATER } from '../src/materials/water';
 import { scenes, GOLDEN_STEPS } from './golden/scenes';
 import { loadPicture } from './picture';
@@ -131,6 +133,65 @@ describe('heat', () => {
     const cooled = alone.sim.world.temp[aloneWater]!;
     expect(cooled).toBeLessThan(0);
     expect(cooled).toBeGreaterThan(-24);
+  });
+
+  it('does not grow a small ice cube sitting in a large pool', () => {
+    const sim = new Simulation(1);
+    const x0 = 20;
+    const y0 = 80;
+    const width = 62;
+    const height = 32;
+    for (let y = y0; y < y0 + height; y++) {
+      for (let x = x0; x < x0 + width; x++) {
+        const edge = x === x0 || y === y0 || x === x0 + width - 1 || y === y0 + height - 1;
+        sim.setCell(x, y, edge ? WALL : WATER);
+      }
+    }
+    // 4×4 cube in the middle of the 60×30 water, not touching the wall.
+    for (let y = y0 + 14; y < y0 + 18; y++) {
+      for (let x = x0 + 29; x < x0 + 33; x++) sim.setCell(x, y, ICE);
+    }
+    expect(countId(sim, ICE)).toBe(16);
+    sim.step(2000);
+    expect(countId(sim, ICE)).toBeLessThanOrEqual(16);
+  });
+
+  it('freezes water tucked into a large ice mass', () => {
+    const sim = new Simulation(2);
+    const x0 = 40;
+    const y0 = 40;
+    for (let y = y0; y < y0 + 12; y++) {
+      for (let x = x0; x < x0 + 16; x++) sim.setCell(x, y, ICE);
+    }
+    // A one-cell pocket. The water touches ice on the left, right, and below.
+    const pocketX = x0 + 8;
+    const pocketY = y0 + 1;
+    sim.setCell(pocketX, y0, WATER);
+    sim.setCell(pocketX, pocketY, WATER);
+    const before = countId(sim, ICE);
+    sim.step(40);
+    expect(sim.world.type[sim.world.index(pocketX, pocketY)]).toBe(ICE);
+    expect(countId(sim, ICE)).toBeGreaterThan(before);
+  });
+
+  it('lets an ice block sitting on a wall sleep', () => {
+    const { sim, region } = loadPicture(
+      `
+      ####
+      #ii#
+      ####
+      `,
+      { seed: 1, x: 32, y: 32 },
+    );
+    const iceX = region.x + 1;
+    const iceY = region.y + 1;
+    expect(sim.world.type[sim.world.index(iceX, iceY)]).toBe(ICE);
+    expect(sim.world.type[sim.world.index(iceX, iceY + 1)]).toBe(WALL);
+    sim.step(6);
+    const cx = iceX >>> CHUNK_SHIFT;
+    const cy = iceY >>> CHUNK_SHIFT;
+    expect(sim.world.awake[cy * sim.world.chunkCols + cx]).toBe(0);
+    expect(countId(sim, ICE)).toBe(2);
   });
 
   it('leaves every temperature byte at 0 in the six original scenes', () => {
